@@ -2,42 +2,50 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { SectionTitle } from "@/components/decor";
 
+/** Portada general: el invitado escribe el código de 6 letras de su invitación para abrir su pase. */
 export const CheckInvitation = () => {
   const [code, setCode] = useState("");
   const router = useRouter();
+  const clean = code.replace(/[^a-z0-9]/gi, "").toUpperCase();
 
   const handleCheck = (e: React.FormEvent) => {
     e.preventDefault();
-    if (code.trim()) {
-      router.push(`/i/${code.trim()}`);
-    }
+    if (clean) router.push(`/i/${clean}`);
   };
 
   return (
-    <section id="confirmar" className="w-full py-24 px-6 bg-ivory border-t border-sand flex flex-col items-center text-center">
-      <div className="max-w-md mx-auto space-y-6">
-        <h3 className="font-serif text-3xl text-espresso">
-          Confirmar Asistencia
-        </h3>
-        <p className="font-sans text-sm text-espresso/70">
-          Ingresa el código que viene en tu invitación para acceder a tu pase y confirmar cuántas personas asistirán.
+    <section id="confirmar" className="relative flex w-full flex-col items-center overflow-hidden bg-blue-dark/40 px-6 py-24 text-center">
+      <div className="absolute inset-0 gold-dust opacity-30" aria-hidden="true" />
+      <div className="relative mx-auto w-full max-w-md">
+        <SectionTitle eyebrow="R.S.V.P." title="Confirmar asistencia" />
+        <p className="mt-6 font-sans text-sm leading-relaxed text-blue-ice/80">
+          Escribe el código que viene en tu invitación para abrir tu pase personal y confirmar cuántas personas asistirán.
         </p>
 
-        <form onSubmit={handleCheck} className="flex flex-col gap-4 mt-8">
-          <input 
-            type="text" 
-            placeholder="Escribe tu código personal" 
+        <form onSubmit={handleCheck} className="card-gold mt-10 flex flex-col gap-6 px-6 py-8">
+          <label htmlFor="invite-code" className="font-sans text-[11px] uppercase tracking-[0.3em] text-blue-mist">
+            Tu código personal
+          </label>
+          <input
+            id="invite-code"
+            type="text"
+            inputMode="text"
+            autoCapitalize="characters"
+            autoComplete="off"
+            maxLength={12}
+            placeholder="Ej. K7Q2MX"
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            className="w-full bg-transparent border border-taupe/40 focus:border-espresso outline-none px-4 py-3 font-sans text-center text-espresso placeholder:text-taupe transition-colors rounded-none"
+            className="input-gold text-center font-serif text-2xl uppercase tracking-[0.4em]"
           />
-          <button 
+          <button
             type="submit"
-            disabled={!code.trim()}
-            className="w-full bg-espresso text-ivory py-3 uppercase tracking-widest text-xs hover:bg-espresso/90 disabled:opacity-50 transition-colors"
+            disabled={!clean}
+            className="bg-foil py-3.5 font-sans text-xs font-medium uppercase tracking-[0.3em] text-navy transition-opacity disabled:opacity-40"
           >
-            Buscar mi invitación
+            Abrir mi invitación
           </button>
         </form>
       </div>

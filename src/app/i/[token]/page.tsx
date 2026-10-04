@@ -1,10 +1,8 @@
 import { getInvitationByToken } from "@/app/actions/invitations";
 import { RSVPForm } from "@/components/RSVPForm";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
-export default async function InvitationPage({ params }: { params: { token: string } }) {
-  // Await the params according to Next.js 15+ async params requirements
+export default async function InvitationPage({ params }: { params: Promise<{ token: string }> }) {
   const resolvedParams = await params;
   const invitation = await getInvitationByToken(resolvedParams.token);
 
@@ -31,7 +29,7 @@ export default async function InvitationPage({ params }: { params: { token: stri
             Kelly <span className="text-taupe italic font-light">&amp;</span> Kyara
           </h1>
           <p className="font-serif text-2xl text-espresso max-w-md mx-auto italic">
-            "{invitation.greeting || "Nos encantaría celebrar con ustedes"}"
+            &ldquo;{invitation.greeting || "Nos encantaría celebrar con ustedes"}&rdquo;
           </p>
         </div>
 

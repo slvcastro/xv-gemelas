@@ -1,6 +1,3 @@
-"use client";
-
-import { useState } from "react";
 import { SplashScreen } from "@/components/SplashScreen";
 import { HeroSection } from "@/components/HeroSection";
 import { MessageSection } from "@/components/MessageSection";
@@ -10,34 +7,31 @@ import { DressCodeSection } from "@/components/DressCodeSection";
 import { CheckInvitation } from "@/components/CheckInvitation";
 import { CountdownSection } from "@/components/CountdownSection";
 import { GiftsSection } from "@/components/GiftsSection";
-import { db } from "@/db";
-import { media } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { GallerySection } from "@/components/GallerySection";
+import { getInvitationMedia } from "@/lib/media";
+
+// Photos come from the database, so this page must render per request (never at build time).
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const coverImage = await db.query.media.findFirst({
-    where: eq(media.usage, "cover_both"),
-    orderBy: [desc(media.createdAt)],
-  });
+  const { cover, portraits, gallery } = await getInvitationMedia();
 
   return (
-    <main className="flex flex-col items-center min-h-screen bg-ivory overflow-hidden">
-      {/* Splash Screen */}
+    <main className="flex min-h-screen flex-col items-center overflow-hidden bg-navy">
       <SplashScreen />
 
-      {/* Main Content */}
       <div className="w-full">
-        <HeroSection cover={coverImage || null} />
+        <HeroSection cover={cover} />
         <CountdownSection />
         <MessageSection />
         <FamilySection />
         <EventDetailsSection />
         <GiftsSection />
         <DressCodeSection />
+        <GallerySection portraits={portraits} photos={gallery} />
         <CheckInvitation />
-        
-        {/* Footer provisional */}
-        <footer className="w-full py-12 text-center bg-espresso text-ivory/50 font-sans text-xs uppercase tracking-widest">
+
+        <footer className="w-full bg-navy-deep py-12 text-center font-sans text-xs uppercase tracking-widest text-blue-mist/60">
           <p>Kelly &amp; Kyara • 2026</p>
         </footer>
       </div>

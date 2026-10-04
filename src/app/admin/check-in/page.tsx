@@ -4,7 +4,7 @@ import { AdminLogin } from "@/components/admin/AdminLogin";
 import { CheckInClient } from "@/components/admin/CheckInClient";
 import Link from "next/link";
 
-export default async function CheckInPage({ searchParams }: { searchParams: { token?: string } }) {
+export default async function CheckInPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const isAuthenticated = await checkAdmin();
   if (!isAuthenticated) return <AdminLogin />;
 
