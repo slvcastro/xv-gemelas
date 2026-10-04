@@ -1,26 +1,152 @@
 @import "tailwindcss";
 
+@theme {
+  /* Paleta "Noche azul y oro" */
+  --color-navy: #05214B;
+  --color-navy-deep: #031634;
+  --color-blue-dark: #193B59;
+  --color-blue-steel: #527C96;
+  --color-blue-mist: #91B1C5;
+  --color-blue-ice: #D5E5EB;
+  --color-gold: #D8C477;
+  --color-gold-muted: #A28E55;
+  --color-gold-warm: #F0CB65;
+  --color-sage: #ABB58D;
+  --color-greige: #939184;
+
+  --color-background: var(--color-navy);
+  --color-foreground: var(--color-blue-ice);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-playfair), ui-serif, Georgia, serif;
+  --font-script: var(--font-great-vibes), "Brush Script MT", cursive;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-navy);
+  --foreground: var(--color-blue-ice);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+}
+
+::selection {
+  background: var(--color-gold);
+  color: var(--color-navy);
+}
+
+/* ---------- Efectos de la temática ---------- */
+
+/* Texto con efecto de lámina dorada (gold foil) */
+@utility text-foil {
+  background-image: linear-gradient(
+    100deg,
+    #a28e55 0%,
+    #d8c477 22%,
+    #f6e7a8 38%,
+    #c9b264 52%,
+    #f0cb65 66%,
+    #a28e55 84%,
+    #d8c477 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: foil-shine 8s linear infinite;
+}
+
+/* Fondo con lámina dorada (botones, líneas) */
+@utility bg-foil {
+  background-image: linear-gradient(100deg, #a28e55 0%, #d8c477 30%, #f6e7a8 50%, #d8c477 70%, #a28e55 100%);
+  background-size: 200% auto;
+}
+
+/* Polvo dorado / salpicaduras sobre el fondo */
+@utility gold-dust {
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(216, 196, 119, 0.55) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 78% 32%, rgba(240, 203, 101, 0.45) 0 1.2px, transparent 2px),
+    radial-gradient(circle at 34% 72%, rgba(216, 196, 119, 0.4) 0 0.8px, transparent 1.4px),
+    radial-gradient(circle at 88% 84%, rgba(162, 142, 85, 0.6) 0 1.4px, transparent 2.2px),
+    radial-gradient(circle at 56% 48%, rgba(216, 196, 119, 0.3) 0 0.7px, transparent 1.2px);
+  background-size: 180px 180px, 240px 240px, 140px 140px, 300px 300px, 90px 90px;
+}
+
+/* Nubes difuminadas tipo acuarela */
+@utility watercolor-wash {
+  background-image:
+    radial-gradient(ellipse 60% 45% at 0% 0%, rgba(82, 124, 150, 0.28), transparent 70%),
+    radial-gradient(ellipse 55% 40% at 100% 100%, rgba(147, 145, 132, 0.18), transparent 70%),
+    radial-gradient(ellipse 40% 35% at 100% 0%, rgba(145, 177, 197, 0.12), transparent 70%);
+}
+
+/* Tarjeta translúcida con borde dorado fino */
+@utility card-gold {
+  background: linear-gradient(180deg, rgba(25, 59, 89, 0.55), rgba(5, 33, 75, 0.55));
+  border: 1px solid rgba(216, 196, 119, 0.35);
+  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(216, 196, 119, 0.12);
+  backdrop-filter: blur(6px);
+}
+
+@keyframes foil-shine {
+  to {
+    background-position: 200% center;
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.8) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.15) rotate(20deg); }
+}
+
+@keyframes float-soft {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-14px) rotate(calc(var(--r, 0deg) + 6deg)); }
+}
+
+.animate-twinkle {
+  animation: twinkle 4s ease-in-out infinite;
+}
+
+.animate-float-soft {
+  animation: float-soft 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-twinkle,
+  .animate-float-soft,
+  .text-foil {
+    animation: none;
+  }
+}
+
+/* Inputs del formulario sobre fondo azul */
+.input-gold {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(216, 196, 119, 0.35);
+  padding: 0.6rem 0;
+  color: var(--color-blue-ice);
+  outline: none;
+  border-radius: 0;
+  transition: border-color 0.2s;
+}
+.input-gold::placeholder {
+  color: rgba(145, 177, 197, 0.6);
+}
+.input-gold:focus {
+  border-bottom-color: var(--color-gold);
 }
