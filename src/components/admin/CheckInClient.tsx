@@ -9,7 +9,7 @@ export const CheckInClient = ({ invitation }: { invitation: any }) => {
   const [status, setStatus] = useState<"pending" | "success" | "error">("pending");
 
   const handleCheckIn = async () => {
-    const res = await checkInGuest(invitation.token, "admin_scanner");
+    const res = await checkInGuest(invitation.token);
     if (res.success) {
       setStatus("success");
     } else {

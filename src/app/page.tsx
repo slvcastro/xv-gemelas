@@ -27,7 +27,7 @@ export default async function Home() {
 
       {/* Main Content */}
       <div className="w-full">
-        <HeroSection coverImageUrl={coverImage?.url || null} />
+        <HeroSection cover={coverImage || null} />
         <CountdownSection />
         <MessageSection />
         <FamilySection />

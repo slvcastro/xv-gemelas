@@ -180,10 +180,31 @@ export const AdminDashboard = ({ initialInvitations, allGuests }: any) => {
             <p className="font-sans text-sm text-espresso/70">Sube aquí las fotografías para la invitación.</p>
             
             <form 
-              action={async (formData) => {
-                const { uploadMedia } = await import("@/app/actions/media");
-                await uploadMedia(formData);
-                alert("¡Foto subida con éxito!");
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const form = e.currentTarget as HTMLFormElement;
+                const fileInput = form.querySelector('input[type="file"]') as HTMLInputElement;
+                const usageSelect = form.querySelector('select[name="usage"]') as HTMLSelectElement;
+                const file = fileInput.files?.[0];
+                const usage = usageSelect.value;
+                if (!file || usage === "none") { alert("Selecciona archivo y uso."); return; }
+                
+                try {
+                  const { upload } = await import("@vercel/blob/client");
+                  const { registerMedia } = await import("@/app/actions/media");
+                  
+                  const blob = await upload(file.name, file, { 
+                    access: 'public', 
+                    handleUploadUrl: '/api/upload'
+                  });
+                  
+                  await registerMedia({ url: blob.url, usage });
+                  alert("¡Foto subida con éxito!");
+                  form.reset();
+                } catch(err) {
+                  alert("Error al subir la foto");
+                  console.error(err);
+                }
               }} 
               className="bg-ivory border border-dashed border-taupe/40 p-12 text-center text-taupe space-y-4"
             >
