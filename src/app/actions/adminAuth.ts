@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { createHash, timingSafeEqual } from "crypto";
-import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 const COOKIE_NAME = "admin_session";
 
@@ -23,24 +23,39 @@ function safeEqual(a: string, b: string) {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
 
-export async function loginAdmin(password: string) {
-  if (safeEqual(password.trim(), getPassword())) {
-    (await cookies()).set(COOKIE_NAME, sessionValue(), {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30, // 30 días
-    });
-    revalidatePath("/admin");
-    return { success: true };
+/** Only allow returning to admin pages of this site (prevents open redirects via ?next=). */
+function safeNext(value: FormDataEntryValue | null) {
+  const next = typeof value === "string" ? value : "";
+  return /^\/admin(?:[/?#]|$)/.test(next) && !next.includes("\\") ? next : "/admin";
+}
+
+export type LoginState = { error: string } | null;
+
+/**
+ * Form action for <AdminLogin>. On success sets the session cookie and redirects to `next`
+ * (e.g. /admin/check-in?token=ABC123 when the door staff scanned a QR before logging in).
+ */
+export async function loginAdmin(_prev: LoginState, formData: FormData): Promise<LoginState> {
+  const password = String(formData.get("password") ?? "").trim();
+  if (!password || !safeEqual(password, getPassword())) {
+    // Small delay to slow down password guessing.
+    await new Promise((r) => setTimeout(r, 600));
+    return { error: "Contraseña incorrecta" };
   }
-  return { success: false, error: "Contraseña incorrecta" };
+
+  (await cookies()).set(COOKIE_NAME, sessionValue(), {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30, // 30 días
+  });
+  redirect(safeNext(formData.get("next")));
 }
 
 export async function logoutAdmin() {
   (await cookies()).delete(COOKIE_NAME);
-  revalidatePath("/admin");
+  redirect("/admin");
 }
 
 export async function checkAdmin() {

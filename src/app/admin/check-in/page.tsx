@@ -1,34 +1,50 @@
+import type { Metadata } from "next";
 import { checkAdmin } from "@/app/actions/adminAuth";
-import { getInvitationByToken } from "@/lib/invitations";
 import { AdminLogin } from "@/components/admin/AdminLogin";
-import { CheckInClient } from "@/components/admin/CheckInClient";
-import Link from "next/link";
+import { CheckInClient, type CheckInPass } from "@/components/admin/CheckInClient";
+import { findInvitationByToken, normalizeToken } from "@/lib/invitations";
+import { formatTime } from "@/lib/format";
+import { checkInPath } from "@/lib/site";
 
-export default async function CheckInPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
-  const isAuthenticated = await checkAdmin();
-  if (!isAuthenticated) return <AdminLogin />;
+export const metadata: Metadata = { title: "Acceso · Kelly & Kyara" };
 
-  const resolvedParams = await searchParams;
-  const token = resolvedParams.token;
+export default async function CheckInPage({ searchParams }: { searchParams: Promise<{ token?: string | string[] }> }) {
+  const { token: rawToken } = await searchParams;
+  const token = normalizeToken(Array.isArray(rawToken) ? rawToken[0] ?? "" : rawToken ?? "");
 
-  if (!token) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-sand/10">
-        <p className="font-sans text-espresso">No se proporcionó ningún token de escaneo.</p>
-      </div>
-    );
+  // Not logged in: show the login and come back to this exact pass afterwards.
+  if (!(await checkAdmin())) {
+    return <AdminLogin next={token ? checkInPath(token) : "/admin/check-in"} pendingToken={token || undefined} />;
   }
 
-  const invitation = await getInvitationByToken(token);
+  if (!token) return <CheckInClient initial={{ kind: "no_token" }} />;
 
-  if (!invitation) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-red-50 text-red-800 space-y-4">
-        <p className="font-serif text-2xl">Pase Inválido</p>
-        <Link href="/admin" className="underline text-sm font-sans">Volver al Panel</Link>
-      </div>
-    );
+  // undefined = database error, null = no such (active) invitation.
+  let invitation: Awaited<ReturnType<typeof findInvitationByToken>> | undefined;
+  try {
+    invitation = await findInvitationByToken(token);
+  } catch (error) {
+    console.error("Error al buscar el pase:", error);
+    invitation = undefined;
   }
 
-  return <CheckInClient invitation={invitation} />;
+  if (invitation === undefined) {
+    return <CheckInClient key={token} initial={{ kind: "error", message: "No hay conexión con la base de datos. Intenta de nuevo." }} />;
+  }
+  if (!invitation) return <CheckInClient key={token} initial={{ kind: "invalid", token }} />;
+
+  const pass: CheckInPass = {
+    token: invitation.token,
+    name: invitation.name,
+    maxGuests: invitation.maxGuests,
+    rsvp: invitation.status ?? "pending",
+    attendees: invitation.attendees.map((a) => a.name),
+  };
+  const initial = invitation.checkedInAt
+    ? ({ kind: "already", time: formatTime(invitation.checkedInAt) ?? "" } as const)
+    : pass.rsvp === "confirmed"
+      ? ({ kind: "ready" } as const)
+      : ({ kind: "not_confirmed" } as const);
+
+  return <CheckInClient key={token} pass={pass} initial={initial} />;
 }

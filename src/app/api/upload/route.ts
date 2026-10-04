@@ -18,7 +18,8 @@ export async function POST(request: Request): Promise<NextResponse> {
           throw new Error("No autorizado");
         }
         return {
-          allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "image/avif"],
+          // HEIC is excluded: browsers cannot display it (iOS converts to JPEG when it is not accepted).
+          allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "image/avif"],
           maximumSizeInBytes: 25 * 1024 * 1024,
           addRandomSuffix: true,
         };

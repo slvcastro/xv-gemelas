@@ -15,23 +15,28 @@ export function normalizeToken(raw: string) {
 }
 
 /**
- * Server-only read of an invitation plus its confirmed attendees.
- * Returns null when the token does not exist, is inactive, or the database fails.
+ * Server-only read of an invitation plus its confirmed attendees. Throws on database errors.
+ * Returns null when the token does not exist or the invitation is inactive.
  * (Deliberately NOT a server action: it would expose phone/notes to anyone guessing tokens.)
  */
-export const getInvitationByToken = cache(async (rawToken: string) => {
+export async function findInvitationByToken(rawToken: string) {
   const token = normalizeToken(rawToken);
   if (!token) return null;
-  try {
-    const [inv] = await db.select().from(invitations).where(eq(invitations.token, token));
-    if (!inv || inv.isActive === false) return null;
+  const [inv] = await db.select().from(invitations).where(eq(invitations.token, token));
+  if (!inv || inv.isActive === false) return null;
 
-    const attendees = await db
-      .select({ id: guests.id, name: guests.name, dietaryRestrictions: guests.dietaryRestrictions })
-      .from(guests)
-      .where(eq(guests.invitationId, inv.id))
-      .orderBy(guests.createdAt);
-    return { ...inv, attendees };
+  const attendees = await db
+    .select({ id: guests.id, name: guests.name, dietaryRestrictions: guests.dietaryRestrictions })
+    .from(guests)
+    .where(eq(guests.invitationId, inv.id))
+    .orderBy(guests.createdAt);
+  return { ...inv, attendees };
+}
+
+/** Like findInvitationByToken but never throws (null on database errors); cached per request. */
+export const getInvitationByToken = cache(async (rawToken: string) => {
+  try {
+    return await findInvitationByToken(rawToken);
   } catch (error) {
     console.error("Error al cargar la invitación:", error);
     return null;
