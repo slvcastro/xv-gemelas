@@ -1,5 +1,5 @@
 import { checkAdmin } from "@/app/actions/adminAuth";
-import { getInvitationByToken } from "@/app/actions/invitations";
+import { getInvitationByToken } from "@/lib/invitations";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { CheckInClient } from "@/components/admin/CheckInClient";
 import Link from "next/link";

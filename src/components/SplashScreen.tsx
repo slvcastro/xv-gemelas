@@ -40,9 +40,10 @@ export const SplashScreen = ({ guestName }: { guestName?: string | null }) => {
             className="relative z-10 flex flex-col items-center px-6 text-center"
           >
             {guestName && (
-              <p className="mb-6 max-w-xs font-serif text-lg italic text-blue-ice/90">
-                {guestName}, tienes una invitación especial
-              </p>
+              <div className="mb-8 flex max-w-xs flex-col items-center gap-2">
+                <span className="font-sans text-[10px] uppercase tracking-[0.35em] text-blue-mist">Invitación especial para</span>
+                <p className="font-serif text-2xl italic leading-snug text-blue-ice">{guestName}</p>
+              </div>
             )}
             <span className="mb-4 font-sans text-[11px] uppercase tracking-[0.4em] text-blue-mist">Nuestros XV años</span>
             <Ornament className="mb-2 h-7 w-44" />

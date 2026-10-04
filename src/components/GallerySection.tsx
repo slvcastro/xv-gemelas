@@ -4,11 +4,28 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { SectionTitle } from "@/components/decor";
+import type { PublicPhoto } from "@/lib/media";
 
-export type GalleryPhoto = { id: string; url: string; focalX: string | null; focalY: string | null; label?: string };
+const pos = (p: PublicPhoto) => `${p.focalX ?? 50}% ${p.focalY ?? 50}%`;
 
-/** Galería con visor a pantalla completa. Si no hay fotos, no se muestra nada. */
-export const GallerySection = ({ portraits, photos }: { portraits: GalleryPhoto[]; photos: GalleryPhoto[] }) => {
+function Tile({ p, className, onOpen }: { p: PublicPhoto; className: string; onOpen: (p: PublicPhoto) => void }) {
+  return (
+    <button onClick={() => onOpen(p)} className={`group relative overflow-hidden border border-gold/30 ${className}`} aria-label="Ver foto">
+      <Image
+        src={p.url}
+        alt="Foto de Kelly y Kyara"
+        fill
+        sizes="(min-width: 768px) 384px, 50vw"
+        className="object-cover transition-transform duration-700 group-hover:scale-105"
+        style={{ objectPosition: pos(p) }}
+      />
+    </button>
+  );
+}
+
+/** Galería con visor a pantalla completa. Si no hay fotos publicadas, no se muestra nada. */
+export const GallerySection = ({ portraits, photos }: { portraits: PublicPhoto[]; photos: PublicPhoto[] }) => {
   const all = [...portraits, ...photos];
   const [open, setOpen] = useState<number | null>(null);
 
@@ -20,26 +37,40 @@ export const GallerySection = ({ portraits, photos }: { portraits: GalleryPhoto[
       if (e.key === "ArrowLeft") setOpen((i) => (i === null ? i : (i - 1 + all.length) % all.length));
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open, all.length]);
 
   if (all.length === 0) return null;
 
-  const pos = (p: GalleryPhoto) => `${p.focalX ?? 50}% ${p.focalY ?? 50}%`;
+  // Blocks of 3 (one tall + two squares, alternating sides), 2 (two squares) or 1 (wide) always fill the grid.
+  const blocks: PublicPhoto[][] = [];
+  for (let i = 0; i < photos.length; i += 3) blocks.push(photos.slice(i, i + 3));
+  const openPhoto = (p: PublicPhoto) => setOpen(all.indexOf(p));
 
   return (
-    <section className="relative w-full overflow-hidden px-6 py-24">
-      <div className="mx-auto flex max-w-5xl flex-col items-center">
-        <p className="mb-3 font-sans text-[11px] uppercase tracking-[0.35em] text-blue-mist">Momentos</p>
-        <h2 className="text-foil font-serif text-3xl md:text-5xl">Nuestra galería</h2>
+    <section className="relative w-full overflow-hidden px-4 py-24 sm:px-6">
+      <div className="mx-auto flex max-w-3xl flex-col items-center">
+        <SectionTitle eyebrow="Momentos" title="Nuestra galería" />
 
         {portraits.length > 0 && (
-          <div className="mt-14 grid w-full max-w-3xl gap-8 sm:grid-cols-2">
+          <div className={`mt-14 grid w-full gap-8 ${portraits.length > 1 ? "sm:grid-cols-2" : "max-w-sm"}`}>
             {portraits.map((p) => (
               <button key={p.id} onClick={() => setOpen(all.indexOf(p))} className="group flex flex-col items-center">
                 <div className="relative aspect-[3/4] w-full overflow-hidden rounded-t-full border border-gold/50 p-2">
                   <div className="relative h-full w-full overflow-hidden rounded-t-full">
-                    <Image src={p.url} alt={p.label ?? "Retrato"} fill sizes="(min-width: 640px) 380px, 90vw" className="object-cover transition-transform duration-700 group-hover:scale-105" style={{ objectPosition: pos(p) }} />
+                    <Image
+                      src={p.url}
+                      alt={p.label ? `Retrato de ${p.label}` : "Retrato"}
+                      fill
+                      sizes="(min-width: 640px) 380px, 90vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-105"
+                      style={{ objectPosition: pos(p) }}
+                    />
                   </div>
                 </div>
                 {p.label && <span className="mt-4 font-script text-4xl text-gold">{p.label}</span>}
@@ -48,17 +79,24 @@ export const GallerySection = ({ portraits, photos }: { portraits: GalleryPhoto[
           </div>
         )}
 
-        {photos.length > 0 && (
-          <div className="mt-14 grid w-full grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
-            {photos.map((p, i) => (
-              <button
-                key={p.id}
-                onClick={() => setOpen(all.indexOf(p))}
-                className={`group relative overflow-hidden border border-gold/30 ${i % 5 === 0 ? "row-span-2 aspect-[3/5]" : "aspect-square"}`}
-              >
-                <Image src={p.url} alt="Foto de Kelly y Kyara" fill sizes="(min-width: 768px) 33vw, 50vw" className="object-cover transition-transform duration-700 group-hover:scale-105" style={{ objectPosition: pos(p) }} />
-              </button>
-            ))}
+        {blocks.length > 0 && (
+          <div className="mt-14 flex w-full flex-col gap-3 md:gap-4">
+            {blocks.map((block, b) =>
+              block.length === 3 ? (
+                <div key={block[0].id} className="grid aspect-square grid-cols-2 grid-rows-2 gap-3 md:gap-4">
+                  <Tile onOpen={openPhoto} p={block[0]} className={`row-span-2 ${b % 2 ? "col-start-2 row-start-1" : ""}`} />
+                  <Tile onOpen={openPhoto} p={block[1]} className={b % 2 ? "col-start-1 row-start-1" : ""} />
+                  <Tile onOpen={openPhoto} p={block[2]} className={b % 2 ? "col-start-1 row-start-2" : ""} />
+                </div>
+              ) : block.length === 2 ? (
+                <div key={block[0].id} className="grid grid-cols-2 gap-3 md:gap-4">
+                  <Tile onOpen={openPhoto} p={block[0]} className="aspect-square" />
+                  <Tile onOpen={openPhoto} p={block[1]} className="aspect-square" />
+                </div>
+              ) : (
+                <Tile key={block[0].id} onOpen={openPhoto} p={block[0]} className="aspect-[3/2] w-full" />
+              )
+            )}
           </div>
         )}
       </div>
@@ -71,30 +109,39 @@ export const GallerySection = ({ portraits, photos }: { portraits: GalleryPhoto[
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[70] flex items-center justify-center bg-navy-deep/95 p-4"
             onClick={() => setOpen(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Visor de fotos"
           >
-            <button className="absolute right-4 top-4 p-2 text-gold" aria-label="Cerrar" onClick={() => setOpen(null)}>
+            <button className="absolute right-4 top-4 z-10 p-2 text-gold" aria-label="Cerrar" onClick={() => setOpen(null)}>
               <X size={28} />
             </button>
             {all.length > 1 && (
               <>
                 <button
-                  className="absolute left-2 p-3 text-gold md:left-6"
+                  className="absolute left-2 z-10 p-3 text-gold md:left-6"
                   aria-label="Anterior"
-                  onClick={(e) => { e.stopPropagation(); setOpen((open - 1 + all.length) % all.length); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpen((open - 1 + all.length) % all.length);
+                  }}
                 >
                   <ChevronLeft size={32} />
                 </button>
                 <button
-                  className="absolute right-2 p-3 text-gold md:right-6"
+                  className="absolute right-2 z-10 p-3 text-gold md:right-6"
                   aria-label="Siguiente"
-                  onClick={(e) => { e.stopPropagation(); setOpen((open + 1) % all.length); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpen((open + 1) % all.length);
+                  }}
                 >
                   <ChevronRight size={32} />
                 </button>
               </>
             )}
             <div className="relative h-[80vh] w-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
-              <Image src={all[open].url} alt="Foto" fill sizes="100vw" className="object-contain" />
+              <Image src={all[open].url} alt="Foto de Kelly y Kyara" fill sizes="100vw" className="object-contain" />
             </div>
           </motion.div>
         )}
