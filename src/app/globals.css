@@ -67,6 +67,8 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  /* background-clip:text only paints inside the box: give descenders (y, g, ¿) room so they are not cut. */
+  padding-bottom: 0.15em;
   animation: foil-shine 8s linear infinite;
 }
 
