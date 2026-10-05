@@ -2,91 +2,75 @@
 
 import { db } from "@/db";
 import { invitations, guests } from "@/db/schema";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { normalizeToken } from "@/lib/invitations";
 
 export type GuestInput = {
   name: string;
   dietaryRestrictions: string;
 };
 
-export async function getInvitationByToken(rawToken: string) {
-  try {
-    const token = decodeURIComponent(rawToken).trim().toUpperCase();
-    const [inv] = await db.select().from(invitations).where(eq(invitations.token, token));
-    if (!inv || inv.isActive === false) return null;
-
-    const attendees = await db.select().from(guests).where(eq(guests.invitationId, inv.id));
-    return { ...inv, attendees };
-  } catch (error) {
-    console.error("Error fetching invitation:", error);
-    return null;
-  }
-}
-
-/** Records the first time a guest opens their personal link (shown in the admin panel). */
-export async function markInvitationOpened(id: string) {
-  try {
-    await db
-      .update(invitations)
-      .set({ openedAt: new Date() })
-      .where(and(eq(invitations.id, id), isNull(invitations.openedAt)));
-  } catch (error) {
-    console.error("Error marking invitation opened:", error);
-  }
-}
-
 export async function submitRSVP(
-  token: string,
+  rawToken: string,
   status: "confirmed" | "declined",
   attendeesList: GuestInput[],
   phone?: string
 ) {
   try {
-    const [inv] = await db.select().from(invitations).where(eq(invitations.token, token));
-    if (!inv) throw new Error("Invitación no encontrada");
+    if (status !== "confirmed" && status !== "declined") throw new Error("Respuesta no válida.");
+    const token = normalizeToken(String(rawToken ?? ""));
+    const [inv] = token ? await db.select().from(invitations).where(eq(invitations.token, token)) : [];
+    if (!inv || inv.isActive === false) throw new Error("Invitación no encontrada.");
 
-    const cleanAttendees = attendeesList
-      .map((a) => ({ name: a.name.trim().slice(0, 120), dietaryRestrictions: (a.dietaryRestrictions || "").trim().slice(0, 200) }))
+    const cleanAttendees = (Array.isArray(attendeesList) ? attendeesList : [])
+      .map((a) => ({
+        name: String(a?.name ?? "").trim().slice(0, 120),
+        dietaryRestrictions: String(a?.dietaryRestrictions ?? "").trim().slice(0, 200),
+      }))
       .filter((a) => a.name.length > 0);
 
     if (status === "confirmed") {
       if (cleanAttendees.length === 0) throw new Error("Agrega al menos el nombre de un asistente.");
       if (cleanAttendees.length > inv.maxGuests) {
-        throw new Error(`Tu invitación es para ${inv.maxGuests} persona(s).`);
+        throw new Error(`Tu invitación es para ${inv.maxGuests} persona${inv.maxGuests === 1 ? "" : "s"}.`);
       }
     }
 
-    const cleanPhone = (phone || "").replace(/[^\d+\s()-]/g, "").trim().slice(0, 25);
+    const cleanPhone = String(phone ?? "").replace(/[^\d+\s()-]/g, "").trim().slice(0, 25);
 
-    await db
+    // One transaction (Neon HTTP batch): status + replacing the guest list either all apply or none do.
+    const updateInvitation = db
       .update(invitations)
-      .set({
-        status,
-        phone: cleanPhone || inv.phone,
-        respondedAt: new Date(),
-      })
+      .set({ status, phone: cleanPhone || inv.phone, respondedAt: new Date() })
       .where(eq(invitations.id, inv.id));
-
-    // Replace the guest list for this invitation
-    await db.delete(guests).where(eq(guests.invitationId, inv.id));
+    const clearGuests = db.delete(guests).where(eq(guests.invitationId, inv.id));
 
     if (status === "confirmed") {
-      await db.insert(guests).values(
-        cleanAttendees.map((a) => ({
-          invitationId: inv.id,
-          name: a.name,
-          dietaryRestrictions: a.dietaryRestrictions || null,
-        }))
-      );
+      await db.batch([
+        updateInvitation,
+        clearGuests,
+        db.insert(guests).values(
+          cleanAttendees.map((a) => ({
+            invitationId: inv.id,
+            name: a.name,
+            dietaryRestrictions: a.dietaryRestrictions || null,
+          }))
+        ),
+      ]);
+    } else {
+      await db.batch([updateInvitation, clearGuests]);
     }
 
     revalidatePath(`/i/${token}`);
     revalidatePath("/admin");
-    return { success: true as const };
+    return { success: true as const, attendees: status === "confirmed" ? cleanAttendees : [] };
   } catch (error: unknown) {
-    console.error("Error submitting RSVP:", error);
-    const message = error instanceof Error ? error.message : "Ocurrió un error al guardar la respuesta.";
+    console.error("Error al guardar RSVP:", error);
+    const message =
+      error instanceof Error && !/failed query|neon|fetch/i.test(error.message)
+        ? error.message
+        : "Ocurrió un error al guardar tu respuesta. Intenta de nuevo.";
     return { success: false as const, error: message };
   }
 }

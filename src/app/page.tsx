@@ -1,46 +1,23 @@
-"use client";
-
-import { useState } from "react";
-import { SplashScreen } from "@/components/SplashScreen";
-import { HeroSection } from "@/components/HeroSection";
-import { MessageSection } from "@/components/MessageSection";
-import { FamilySection } from "@/components/FamilySection";
-import { EventDetailsSection } from "@/components/EventDetailsSection";
-import { DressCodeSection } from "@/components/DressCodeSection";
+import type { Metadata } from "next";
 import { CheckInvitation } from "@/components/CheckInvitation";
-import { CountdownSection } from "@/components/CountdownSection";
-import { GiftsSection } from "@/components/GiftsSection";
-import { db } from "@/db";
-import { media } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { InvitationLayout } from "@/components/InvitationLayout";
+import { getInvitationMedia } from "@/lib/media";
+import { SITE_DESCRIPTION, openGraph } from "@/lib/metadata";
+
+// Photos come from the database, so this page must render per request (never at build time).
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { sharePreview } = await getInvitationMedia();
+  return { openGraph: openGraph(SITE_DESCRIPTION, sharePreview?.url) };
+}
 
 export default async function Home() {
-  const coverImage = await db.query.media.findFirst({
-    where: eq(media.usage, "cover_both"),
-    orderBy: [desc(media.createdAt)],
-  });
+  const media = await getInvitationMedia();
 
   return (
-    <main className="flex flex-col items-center min-h-screen bg-ivory overflow-hidden">
-      {/* Splash Screen */}
-      <SplashScreen />
-
-      {/* Main Content */}
-      <div className="w-full">
-        <HeroSection cover={coverImage || null} />
-        <CountdownSection />
-        <MessageSection />
-        <FamilySection />
-        <EventDetailsSection />
-        <GiftsSection />
-        <DressCodeSection />
-        <CheckInvitation />
-        
-        {/* Footer provisional */}
-        <footer className="w-full py-12 text-center bg-espresso text-ivory/50 font-sans text-xs uppercase tracking-widest">
-          <p>Kelly &amp; Kyara • 2026</p>
-        </footer>
-      </div>
-    </main>
+    <InvitationLayout media={media}>
+      <CheckInvitation />
+    </InvitationLayout>
   );
 }

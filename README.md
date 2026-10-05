@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# XV Años · Kelly & Kyara
 
-## Getting Started
+Invitación digital para los XV años de Kelly y Kyara (sábado 28 de noviembre de 2026, Ticul, Yucatán).
+Next.js 16 (App Router) + Tailwind v4 + Drizzle ORM sobre Neon Postgres, con fotos en Vercel Blob.
 
-First, run the development server:
+## Rutas
+
+| Ruta | Para quién | Qué hace |
+| --- | --- | --- |
+| `/` | Público | Invitación general; el invitado escribe su código para abrir su pase. |
+| `/i/CODIGO` | Cada invitado | Invitación completa personalizada + confirmación (RSVP) + pase QR. |
+| `/admin` | Familia | Panel: invitados, fotografías y recepción. |
+| `/admin/check-in?token=CODIGO` | Personal de la entrada | Pantalla verde / amarilla / roja al escanear el QR. |
+
+## Variables de entorno (Vercel → Settings → Environment Variables)
+
+| Variable | Obligatoria | Uso |
+| --- | --- | --- |
+| `DATABASE_URL` | Sí | Cadena de conexión de Neon (proyecto `xv-kelly-kyara`, rama `production`). Guardada como variable *sensible*. |
+| `BLOB_READ_WRITE_TOKEN` | Sí, para subir fotos | La crea Vercel al conectar el Blob store `xv-kelly-kyara-fotos` al proyecto. |
+| `ADMIN_PASSWORD` | Sí | Contraseña del panel. Si faltara se usaría una por defecto y el panel mostraría un aviso. |
+
+El build **no** necesita ninguna variable: todas las páginas que leen la base de datos se renderizan por petición.
+Los enlaces que se comparten (WhatsApp, QR) usan el dominio de producción que Vercel expone en
+`VERCEL_PROJECT_PRODUCTION_URL` (automático).
+
+## Base de datos
+
+El esquema está en `src/db/schema.ts`. Para crear o actualizar las tablas en Neon:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+DATABASE_URL="postgresql://…" npx drizzle-kit push
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Desarrollo
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev      # http://localhost:3000 (necesita DATABASE_URL en .env.local)
+npm run lint
+npm run build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Datos que se editan en el código
 
-## Learn More
+- Lugares, horarios, Plus Codes, mapas e itinerario: `src/lib/event.ts` (una sola fuente; la usan las tarjetas, el calendario y el mensaje de WhatsApp).
+- Bancos para transferencias: `BANK_INFO` en `src/components/GiftsSection.tsx` (el botón se oculta mientras esté vacío).
+- Padres y padrinos: `src/components/FamilySection.tsx`.
+- Mensaje de WhatsApp: `src/lib/whatsapp.ts`.
 
-To learn more about Next.js, take a look at the following resources:
+## Costos y límites (todo en planes gratuitos)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Servicio | Plan | Cómo se evita cualquier cobro |
+| --- | --- | --- |
+| Vercel | Hobby | No tiene forma de pago: si se llegara a un límite, Vercel pausa el servicio, no cobra. No hay integraciones de pago instaladas. La optimización de imágenes guarda las copias 31 días y usa pocos tamaños (`next.config.ts`) para quedar muy por debajo de la cuota. |
+| Vercel Blob | Incluido en Hobby | Un solo almacén (`xv-kelly-kyara-fotos`). Subir solo JPG/PNG/WebP de hasta 25 MB. |
+| Neon | Free | Cómputo fijo en 0.25 CU (lo mínimo) con suspensión automática a los 5 min sin uso: las horas gratis del mes rinden ~400 h de base activa. El plan Free no admite cobros. |
+| Hostinger | Dominio pagado hasta el 4 oct 2027 | Renovación automática **desactivada** (no habrá cargo en 2027). Para conservar el dominio después, renovarlo a mano desde hPanel. |
+| GitHub | Gratis | El repositorio no usa GitHub Actions ni servicios de pago. |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Nunca se debe aceptar "Upgrade", "Pro" ni compras en ninguno de los paneles.

@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Pantallas altas (escritorio 1080p): la portada puede crecer sin salirse de la primera pantalla. */
+@custom-variant tall (@media (min-height: 940px));
+/* Pantallas bajas (celular en horizontal): aunque sean anchas, usar tamaños de móvil. */
+@custom-variant short (@media (max-height: 520px));
+
 @theme {
   /* Paleta "Noche azul y oro" */
   --color-navy: #05214B;
@@ -27,23 +32,28 @@
   --foreground: var(--color-blue-ice);
 }
 
-html {
-  scroll-behavior: smooth;
-}
+/* Element defaults go in the base layer so utility classes (font-script, font-sans…) can override them. */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
 
-body {
-  background-color: var(--background);
-  color: var(--foreground);
-}
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    /* Playfair usa números antiguos por defecto (el "2026" se ve chico): fechas y horas con números de caja alta. */
+    font-variant-numeric: lining-nums;
+  }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-serif);
-  font-weight: 400;
-}
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+  }
 
-::selection {
-  background: var(--color-gold);
-  color: var(--color-navy);
+  ::selection {
+    background: var(--color-gold);
+    color: var(--color-navy);
+  }
 }
 
 /* ---------- Efectos de la temática ---------- */
@@ -64,7 +74,29 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  /* background-clip:text only paints inside the box: give descenders (y, g, ¿) room so they are not cut.
+     foil-script widens this room through the variables for Great Vibes (loops of the K, tails of the y). */
+  padding: var(--foil-pt, 0) var(--foil-px, 0) var(--foil-pb, 0.15em);
   animation: foil-shine 8s linear infinite;
+}
+
+/* Use together with text-foil on Great Vibes headings. */
+@utility foil-script {
+  --foil-pt: 0.18em;
+  --foil-px: 0.25em;
+  --foil-pb: 0.32em;
+}
+
+/* Antetítulos y etiquetas en versalitas espaciadas: 11px en móvil, 12px en escritorio. */
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  @media (width >= 48rem) {
+    font-size: 0.75rem;
+  }
 }
 
 /* Fondo con lámina dorada (botones, líneas) */
@@ -73,15 +105,10 @@ h1, h2, h3, h4, h5, h6 {
   background-size: 200% auto;
 }
 
-/* Polvo dorado / salpicaduras sobre el fondo */
+/* Polvo de estrellas dorado: mosaico SVG con puntos de tamaño y brillo aleatorios (sin cuadrícula visible). */
 @utility gold-dust {
-  background-image:
-    radial-gradient(circle at 12% 18%, rgba(216, 196, 119, 0.55) 0 1px, transparent 1.6px),
-    radial-gradient(circle at 78% 32%, rgba(240, 203, 101, 0.45) 0 1.2px, transparent 2px),
-    radial-gradient(circle at 34% 72%, rgba(216, 196, 119, 0.4) 0 0.8px, transparent 1.4px),
-    radial-gradient(circle at 88% 84%, rgba(162, 142, 85, 0.6) 0 1.4px, transparent 2.2px),
-    radial-gradient(circle at 56% 48%, rgba(216, 196, 119, 0.3) 0 0.7px, transparent 1.2px);
-  background-size: 180px 180px, 240px 240px, 140px 140px, 300px 300px, 90px 90px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Ccircle cx='3.07' cy='3.58' r='0.49' fill='%23D8C477' opacity='0.42'/%3E%3Ccircle cx='238.56' cy='201.03' r='0.73' fill='%23F6E7A8' opacity='0.73'/%3E%3Ccircle cx='248.39' cy='207.04' r='0.64' fill='%23F6E7A8' opacity='0.47'/%3E%3Ccircle cx='106.19' cy='129.22' r='0.53' fill='%23F6E7A8' opacity='0.66'/%3E%3Ccircle cx='172.27' cy='164' r='0.7' fill='%23D5E5EB' opacity='0.72'/%3E%3Ccircle cx='254.99' cy='114.14' r='0.52' fill='%23D5E5EB' opacity='0.79'/%3E%3Ccircle cx='93.59' cy='22.28' r='0.46' fill='%23D5E5EB' opacity='0.65'/%3E%3Ccircle cx='190.95' cy='246.53' r='0.75' fill='%23D8C477' opacity='0.42'/%3E%3Ccircle cx='206.41' cy='28.65' r='0.89' fill='%23D5E5EB' opacity='0.62'/%3E%3Ccircle cx='184.13' cy='139.18' r='0.5' fill='%23D5E5EB' opacity='0.58'/%3E%3Ccircle cx='225.67' cy='71.27' r='0.66' fill='%23F6E7A8' opacity='0.5'/%3E%3Ccircle cx='50' cy='152.8' r='0.42' fill='%23D5E5EB' opacity='0.71'/%3E%3Ccircle cx='88.53' cy='176.81' r='0.85' fill='%23D8C477' opacity='0.45'/%3E%3Ccircle cx='237.76' cy='2.34' r='0.41' fill='%23F6E7A8' opacity='0.31'/%3E%3C/svg%3E");
+  background-size: 260px 260px;
 }
 
 /* Nubes difuminadas tipo acuarela */
@@ -111,22 +138,61 @@ h1, h2, h3, h4, h5, h6 {
   50% { opacity: 1; transform: scale(1.15) rotate(20deg); }
 }
 
-@keyframes float-soft {
-  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
-  50% { transform: translateY(-14px) rotate(calc(var(--r, 0deg) + 6deg)); }
-}
-
 .animate-twinkle {
   animation: twinkle 4s ease-in-out infinite;
 }
 
-.animate-float-soft {
-  animation: float-soft 7s ease-in-out infinite;
+/* ---------- Art déco ---------- */
+
+/* Las líneas del marco se trazan desde el centro hacia las esquinas. */
+@keyframes deco-draw-x {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+@keyframes deco-draw-y {
+  from {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes deco-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-deco-draw-x {
+  animation: deco-draw-x 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+.animate-deco-draw-y {
+  animation: deco-draw-y 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+}
+
+.animate-deco-fade {
+  animation: deco-fade 1.2s ease-out 1s both;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .animate-twinkle,
-  .animate-float-soft,
+  .animate-deco-draw-x,
+  .animate-deco-draw-y,
+  .animate-deco-fade,
   .text-foil {
     animation: none;
   }

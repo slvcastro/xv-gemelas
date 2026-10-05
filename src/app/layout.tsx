@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Playfair_Display, Inter, Great_Vibes } from "next/font/google";
+import { SITE_DESCRIPTION, SITE_TITLE, metadataBase, openGraph } from "@/lib/metadata";
 import "./globals.css";
 
 const playfair = Playfair_Display({
@@ -19,14 +20,11 @@ const greatVibes = Great_Vibes({
 });
 
 export const metadata: Metadata = {
-  title: "XV Años · Kelly & Kyara",
-  description: "Sábado 28 de noviembre de 2026 · Ticul, Yucatán. ¡Nos encantará celebrar contigo!",
-  openGraph: {
-    title: "XV Años · Kelly & Kyara",
-    description: "Sábado 28 de noviembre de 2026 · Ticul, Yucatán",
-    locale: "es_MX",
-    type: "website",
-  },
+  metadataBase,
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  openGraph: openGraph(SITE_DESCRIPTION),
+  twitter: { card: "summary_large_image" },
   robots: { index: false, follow: false },
 };
 

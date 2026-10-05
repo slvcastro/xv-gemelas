@@ -1,228 +1,276 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { submitRSVP, GuestInput } from "@/app/actions/invitations";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
+import { Check, Pencil, UserPlus, X } from "lucide-react";
+import { submitRSVP, type GuestInput } from "@/app/actions/invitations";
+import { CornerTicks } from "@/components/decor";
+
+type Status = "pending" | "confirmed" | "declined";
+type Row = GuestInput & { key: number };
 
 type RSVPFormProps = {
   token: string;
   name: string;
   maxGuests: number;
-  initialStatus: "pending" | "confirmed" | "declined" | null;
-  existingAttendees: any[];
+  initialStatus: Status | null;
+  existingAttendees: { name: string; dietaryRestrictions: string | null }[];
+  initialPhone: string | null;
+  /** Absolute URL encoded in the QR; the door staff opens it to register the entrance. */
+  checkInUrl: string;
 };
 
-export const RSVPForm = ({ token, name, maxGuests, initialStatus, existingAttendees }: RSVPFormProps) => {
-  const [status, setStatus] = useState<"pending" | "confirmed" | "declined">(initialStatus || "pending");
-  const [isEditing, setIsEditing] = useState(initialStatus === "pending");
-  
-  const [attendees, setAttendees] = useState<GuestInput[]>(
-    existingAttendees.length > 0 
-      ? existingAttendees 
-      : [{ name: "", dietaryRestrictions: "" }]
+let rowKey = 0;
+const newRow = (g?: { name: string; dietaryRestrictions: string | null }): Row => ({
+  key: rowKey++,
+  name: g?.name ?? "",
+  dietaryRestrictions: g?.dietaryRestrictions ?? "",
+});
+const people = (n: number) => `${n} persona${n === 1 ? "" : "s"}`;
+
+export const RSVPForm = ({ token, name, maxGuests, initialStatus, existingAttendees, initialPhone, checkInUrl }: RSVPFormProps) => {
+  const savedInitially = initialStatus ?? "pending";
+  const [saved, setSaved] = useState<{ status: Status; attendees: GuestInput[] }>({
+    status: savedInitially,
+    attendees: existingAttendees.map((a) => ({ name: a.name, dietaryRestrictions: a.dietaryRestrictions ?? "" })),
+  });
+  const [isEditing, setIsEditing] = useState(savedInitially === "pending");
+  const [choice, setChoice] = useState<"confirmed" | "declined" | null>(savedInitially === "pending" ? null : savedInitially);
+  const [rows, setRows] = useState<Row[]>(() =>
+    existingAttendees.length > 0 ? existingAttendees.slice(0, maxGuests).map(newRow) : [newRow()]
   );
-  
-  const [phone, setPhone] = useState<string>("");
+  const [phone, setPhone] = useState(initialPhone ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleAddGuest = () => {
-    if (attendees.length < maxGuests) {
-      setAttendees([...attendees, { name: "", dietaryRestrictions: "" }]);
-    }
-  };
+  const updateRow = (key: number, field: keyof GuestInput, value: string) =>
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, [field]: value } : r)));
 
-  const handleRemoveGuest = (index: number) => {
-    if (attendees.length > 1) {
-      setAttendees(attendees.filter((_, i) => i !== index));
-    }
-  };
-
-  const updateGuest = (index: number, field: keyof GuestInput, value: string) => {
-    const newAttendees = [...attendees];
-    newAttendees[index][field] = value;
-    setAttendees(newAttendees);
-  };
-
-  const handleSubmit = async (selectedStatus: "confirmed" | "declined") => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError(null);
-    
-    if (selectedStatus === "confirmed") {
-      // Validate names
-      const hasEmptyNames = attendees.some(a => !a.name.trim());
-      if (hasEmptyNames) {
-        setError("Por favor ingresa el nombre de todos los asistentes.");
-        return;
-      }
+    if (!choice) {
+      setError("Elige si podrán acompañarnos.");
+      return;
+    }
+    if (choice === "confirmed" && rows.some((r) => !r.name.trim())) {
+      setError("Escribe el nombre de cada asistente (o quita los campos vacíos).");
+      return;
     }
 
     setIsSubmitting(true);
-    const result = await submitRSVP(token, selectedStatus, attendees, phone);
+    const result = await submitRSVP(
+      token,
+      choice,
+      rows.map(({ name, dietaryRestrictions }) => ({ name, dietaryRestrictions })),
+      phone
+    );
     setIsSubmitting(false);
 
     if (result.success) {
-      setStatus(selectedStatus);
+      setSaved({ status: choice, attendees: result.attendees });
       setIsEditing(false);
     } else {
-      setError(result.error || "Error al guardar. Intenta de nuevo.");
+      setError(result.error);
     }
   };
 
-  const [scanUrl, setScanUrl] = useState("");
-
-  useEffect(() => {
-    // Generate the URL the admin will open when scanning this QR code.
-    setScanUrl(`${window.location.origin}/admin/check-in?token=${token}`);
-  }, [token]);
-
   if (!isEditing) {
     return (
-      <motion.div 
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-        className="w-full max-w-lg mx-auto bg-ivory p-8 border border-taupe/20 text-center space-y-6"
-      >
-        <h2 className="font-serif text-3xl text-espresso">
-          {status === "confirmed" ? "¡Gracias por confirmar!" : "Lamentamos que no puedas asistir."}
-        </h2>
-        {status === "confirmed" && (
-          <div className="space-y-4">
-            <p className="font-sans text-espresso/80">Has confirmado {attendees.length} lugar(es).</p>
-            
-            <div className="bg-white p-6 border border-sand/50 shadow-sm mx-auto flex flex-col items-center">
-              <p className="font-sans text-xs uppercase tracking-widest text-taupe mb-4">Pase de Acceso</p>
-              {scanUrl && (
-                <QRCodeSVG 
-                  value={scanUrl} 
-                  size={160} 
-                  bgColor={"#ffffff"} 
-                  fgColor={"#3E2723"} 
-                  level={"M"} 
-                />
-              )}
-              <p className="font-sans text-[10px] uppercase tracking-widest text-taupe mt-4">
-                Muestra este código al llegar
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-gold relative mx-auto w-full max-w-md px-5 py-10 text-center sm:px-8">
+        <CornerTicks className="inset-2.5" />
+        {saved.status === "confirmed" ? (
+          <div className="flex flex-col items-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/60 text-gold">
+              <Check size={22} />
+            </span>
+            <h3 className="text-foil mt-5 font-serif text-3xl">¡Gracias por confirmar!</h3>
+            <p className="mt-3 font-sans text-sm text-blue-ice/80">
+              Tu pase es para <span className="text-gold">{people(saved.attendees.length)}</span>. ¡Los esperamos con mucha ilusión!
+            </p>
+
+            <div className="mt-8 flex flex-col items-center">
+              <p className="mb-3 eyebrow text-blue-mist">Pase de acceso</p>
+              <div className="rounded-sm bg-white p-3 shadow-[0_0_40px_-8px_rgba(216,196,119,0.45)]">
+                <QRCodeSVG value={checkInUrl} size={184} fgColor="#05214B" bgColor="#ffffff" level="M" title={`Pase de ${name}`} />
+              </div>
+              <p className="mt-3 font-serif text-lg tracking-[0.3em] text-gold">{token}</p>
+              <p className="mt-2 max-w-[16rem] font-sans text-xs leading-relaxed text-blue-mist">
+                Muéstralo en la entrada. Te sugerimos tomarle captura de pantalla.
               </p>
             </div>
 
-            <ul className="text-sm font-sans space-y-2 mt-4">
-              {attendees.map((a, i) => (
-                <li key={i} className="text-espresso font-medium">{a.name}</li>
+            <ul className="mt-8 w-full space-y-2 border-y border-gold/15 py-5">
+              {saved.attendees.map((a, i) => (
+                <li key={i} className="font-serif text-lg text-blue-ice">
+                  {a.name}
+                  {a.dietaryRestrictions && <span className="block font-sans text-xs text-blue-mist">{a.dietaryRestrictions}</span>}
+                </li>
               ))}
             </ul>
-            <div className="p-4 bg-sand/20 mt-4">
-              <p className="text-xs uppercase tracking-widest text-espresso mb-1">Recordatorio</p>
-              <p className="text-sm text-espresso/80">Código de vestimenta: Ropa de gala. <br/>(Evitar tonalidades azules)</p>
+
+            <div className="mt-6 w-full border border-gold/25 px-4 py-4">
+              <p className="eyebrow text-gold">Recordatorio · Gala</p>
+              <p className="mt-2 font-sans text-sm text-blue-ice/80">
+                Por favor <strong className="font-medium text-gold">no uses ninguna tonalidad de azul</strong>: es el color reservado para las quinceañeras.
+              </p>
             </div>
           </div>
+        ) : (
+          <div className="flex flex-col items-center">
+            <h3 className="text-foil font-serif text-3xl">Lamentamos que no puedan acompañarnos</h3>
+            <p className="mt-4 font-sans text-sm leading-relaxed text-blue-ice/80">
+              Gracias por avisarnos. Si sus planes cambian, aún pueden confirmar desde este mismo enlace.
+            </p>
+          </div>
         )}
-        <button 
-          onClick={() => setIsEditing(true)}
-          className="text-sm text-taupe hover:text-espresso underline transition-colors mt-4"
+
+        <button
+          onClick={() => {
+            setChoice(saved.status === "pending" ? null : saved.status);
+            setIsEditing(true);
+          }}
+          className="mt-8 inline-flex items-center gap-2 font-sans text-xs uppercase tracking-[0.25em] text-blue-mist underline-offset-4 transition-colors hover:text-gold hover:underline"
         >
-          Modificar respuesta
+          <Pencil size={13} /> Modificar respuesta
         </button>
       </motion.div>
     );
   }
 
   return (
-    <div className="w-full max-w-lg mx-auto space-y-8">
-      <div className="text-center space-y-2">
-        <h2 className="font-serif text-3xl text-espresso">{name}</h2>
-        <p className="font-sans text-sm text-espresso/80">Invitación para {maxGuests} persona{maxGuests > 1 ? 's' : ''}</p>
+    <form onSubmit={handleSubmit} className="card-gold relative mx-auto w-full max-w-md px-5 py-10 sm:px-8" noValidate>
+      <CornerTicks className="inset-2.5" />
+      <div className="text-center">
+        <p className="eyebrow text-blue-mist">Hemos reservado</p>
+        <p className="mt-2 font-serif text-3xl text-gold">{people(maxGuests)}</p>
+        <p className="mt-6 font-sans text-sm text-blue-ice/85">¿Nos acompañarán?</p>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-600 text-sm font-sans text-center">
-          {error}
-        </div>
-      )}
-
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <button 
-          onClick={() => setStatus("confirmed")}
-          className={`flex-1 py-3 px-6 uppercase tracking-widest text-xs transition-colors border ${status === "confirmed" ? "bg-espresso text-ivory border-espresso" : "bg-transparent text-espresso border-espresso/30 hover:border-espresso"}`}
-        >
-          Sí, asistiremos
-        </button>
-        <button 
-          onClick={() => setStatus("declined")}
-          className={`flex-1 py-3 px-6 uppercase tracking-widest text-xs transition-colors border ${status === "declined" ? "bg-espresso text-ivory border-espresso" : "bg-transparent text-espresso border-espresso/30 hover:border-espresso"}`}
-        >
-          No podremos
-        </button>
+      <div className="mt-4 grid grid-cols-2 gap-3" role="radiogroup" aria-label="Respuesta">
+        {(
+          [
+            ["confirmed", maxGuests > 1 ? "Sí, asistiremos" : "Sí, asistiré"],
+            ["declined", maxGuests > 1 ? "No podremos" : "No podré"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={choice === value}
+            onClick={() => setChoice(value)}
+            className={`border px-2 py-3.5 font-sans text-[11px] uppercase tracking-[0.12em] transition-colors sm:tracking-[0.2em] ${
+              choice === value ? "border-transparent bg-foil text-navy" : "border-gold/40 text-gold hover:border-gold"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      <AnimatePresence>
-        {status === "confirmed" && (
-          <motion.div 
+      <AnimatePresence initial={false}>
+        {choice === "confirmed" && (
+          <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden space-y-6"
+            className="overflow-hidden"
           >
-            <div className="space-y-4">
-              <h3 className="font-serif text-xl text-espresso border-b border-taupe/20 pb-2">Asistentes</h3>
-              {attendees.map((attendee, index) => (
-                <div key={index} className="space-y-3 bg-white/50 p-4 border border-sand">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-sans text-taupe uppercase tracking-widest">Invitado {index + 1}</span>
-                    {attendees.length > 1 && (
-                      <button onClick={() => handleRemoveGuest(index)} className="text-xs text-red-500 hover:text-red-700">Eliminar</button>
+            <div className="space-y-5 pt-8">
+              {rows.map((row, index) => (
+                <div key={row.key} className="relative border border-gold/20 bg-navy/40 px-4 pb-4 pt-3">
+                  <div className="flex items-center justify-between">
+                    <span className="eyebrow text-blue-mist">Asistente {index + 1}</span>
+                    {rows.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setRows((prev) => prev.filter((r) => r.key !== row.key))}
+                        className="p-1 text-blue-mist transition-colors hover:text-gold"
+                        aria-label={`Quitar asistente ${index + 1}`}
+                      >
+                        <X size={16} />
+                      </button>
                     )}
                   </div>
-                  <input 
-                    type="text" 
-                    placeholder="Nombre completo" 
-                    value={attendee.name}
-                    onChange={(e) => updateGuest(index, "name", e.target.value)}
-                    className="w-full bg-transparent border-b border-espresso/30 focus:border-espresso outline-none py-2 font-sans text-espresso placeholder:text-taupe transition-colors rounded-none"
+                  <input
+                    type="text"
+                    autoComplete="name"
+                    placeholder="Nombre completo"
+                    value={row.name}
+                    maxLength={120}
+                    onChange={(e) => updateRow(row.key, "name", e.target.value)}
+                    className="input-gold mt-1 font-serif text-lg"
                   />
-                  <input 
-                    type="text" 
-                    placeholder="Restricciones alimentarias (Opcional)" 
-                    value={attendee.dietaryRestrictions}
-                    onChange={(e) => updateGuest(index, "dietaryRestrictions", e.target.value)}
-                    className="w-full bg-transparent border-b border-espresso/30 focus:border-espresso outline-none py-2 font-sans text-sm text-espresso placeholder:text-taupe transition-colors rounded-none"
+                  <input
+                    type="text"
+                    placeholder="Alergias o restricciones (opcional)"
+                    value={row.dietaryRestrictions}
+                    maxLength={200}
+                    onChange={(e) => updateRow(row.key, "dietaryRestrictions", e.target.value)}
+                    className="input-gold mt-2 text-sm"
                   />
                 </div>
               ))}
-            </div>
 
-            {attendees.length < maxGuests && (
-              <button 
-                onClick={handleAddGuest}
-                className="w-full py-3 border border-dashed border-taupe text-taupe hover:text-espresso hover:border-espresso transition-colors text-sm uppercase tracking-widest"
-              >
-                + Añadir otro asistente
-              </button>
-            )}
+              {rows.length < maxGuests && (
+                <button
+                  type="button"
+                  onClick={() => setRows((prev) => [...prev, newRow()])}
+                  className="flex w-full items-center justify-center gap-2 border border-dashed border-gold/40 py-3 font-sans text-[11px] uppercase tracking-[0.2em] text-gold transition-colors hover:border-gold"
+                >
+                  <UserPlus size={15} /> Agregar asistente ({rows.length} de {maxGuests})
+                </button>
+              )}
 
-            <div className="space-y-3 bg-white/50 p-4 border border-sand mt-6">
-              <label className="text-xs font-sans text-taupe uppercase tracking-widest block text-left">
-                Teléfono / WhatsApp (Opcional)
-              </label>
-              <input 
-                type="tel" 
-                placeholder="Para enviarte recordatorios o actualizaciones" 
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-transparent border-b border-espresso/30 focus:border-espresso outline-none py-2 font-sans text-sm text-espresso placeholder:text-taupe transition-colors rounded-none"
-              />
+              <div className="pt-2">
+                <label htmlFor="rsvp-phone" className="eyebrow text-blue-mist">
+                  WhatsApp (opcional)
+                </label>
+                <input
+                  id="rsvp-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="Para enviarte recordatorios"
+                  value={phone}
+                  maxLength={25}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="input-gold text-sm"
+                />
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {error && (
+        <p role="alert" className="mt-6 border border-red-400/40 bg-red-500/10 px-4 py-3 text-center font-sans text-sm text-red-200">
+          {error}
+        </p>
+      )}
+
       <button
-        onClick={() => handleSubmit(status === "pending" ? "confirmed" : status)}
-        disabled={isSubmitting || status === "pending"}
-        className="w-full py-4 bg-espresso text-ivory uppercase tracking-widest text-sm hover:bg-espresso/90 disabled:opacity-50 transition-colors"
+        type="submit"
+        disabled={isSubmitting || !choice}
+        className="mt-8 w-full bg-foil py-4 font-sans text-xs font-medium uppercase tracking-[0.3em] text-navy transition-opacity disabled:border disabled:border-gold/30 disabled:bg-none disabled:text-gold/50"
       >
-        {isSubmitting ? "Guardando..." : "Confirmar Respuesta"}
+        {isSubmitting ? "Guardando…" : "Enviar respuesta"}
       </button>
 
-    </div>
+      {saved.status !== "pending" && (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setIsEditing(false);
+          }}
+          className="mt-4 w-full font-sans text-xs uppercase tracking-[0.25em] text-blue-mist transition-colors hover:text-gold"
+        >
+          Cancelar
+        </button>
+      )}
+    </form>
   );
 };
