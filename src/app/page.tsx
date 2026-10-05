@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CheckInvitation } from "@/components/CheckInvitation";
+import { HowToConfirm } from "@/components/HowToConfirm";
 import { InvitationLayout } from "@/components/InvitationLayout";
 import { getInvitationMedia } from "@/lib/media";
 import { SITE_DESCRIPTION, openGraph } from "@/lib/metadata";
@@ -17,7 +17,7 @@ export default async function Home() {
 
   return (
     <InvitationLayout media={media}>
-      <CheckInvitation />
+      <HowToConfirm />
     </InvitationLayout>
   );
 }

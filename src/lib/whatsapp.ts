@@ -1,4 +1,6 @@
-import { CEREMONY, RECEPTION } from "@/lib/event";
+import { CEREMONY, DRESS_CODE_NOTE, EVENT_DATE_LABEL, RECEPTION } from "@/lib/event";
+import { joinNames } from "@/lib/families";
+import { formatLongDate } from "@/lib/format";
 
 /** Digits for wa.me: Mexican 10-digit numbers get the 52 country code; other formats are kept. */
 export function whatsappNumber(phone: string | null | undefined) {
@@ -14,23 +16,63 @@ export function whatsappUrl(phone: string | null | undefined, text: string) {
   return `https://wa.me/${whatsappNumber(phone)}?text=${encodeURIComponent(text)}`;
 }
 
-export function invitationMessage({ name, maxGuests, url }: { name: string; maxGuests: number; url: string }) {
-  const plural = maxGuests > 1;
+type MessageData = {
+  familyName: string;
+  /** Names of all the members, in order. */
+  memberNames: string[];
+  url: string;
+  deadline?: Date | string | null;
+};
+
+/** Personal invitation sent from the admin panel (one link per family). */
+export function invitationMessage({ familyName, greeting, memberNames, url, deadline }: MessageData & { greeting?: string | null }) {
+  const plural = memberNames.length !== 1;
+  const deadlineLabel = formatLongDate(deadline);
+  const reserved = plural
+    ? `Hemos reservado ${memberNames.length} lugares para: ${joinNames(memberNames)}.`
+    : "Hemos reservado un lugar especialmente para ti.";
+
   return [
-    `¡Hola, ${name}! ✨`,
+    `¡Hola, ${familyName}! ✨`,
+    ...(greeting?.trim() ? ["", greeting.trim()] : []),
     "",
-    `Con mucha alegría ${plural ? "los" : "te"} invitamos a celebrar los XV años de Kelly y Kyara.`,
+    `Con mucha alegría ${plural ? "los" : "te"} invitamos a celebrar nuestros XV años.`,
     "",
-    "Sábado 28 de noviembre de 2026",
+    EVENT_DATE_LABEL,
     `Ceremonia: ${CEREMONY.time}, ${CEREMONY.place}, Ticul`,
     `Recepción: ${RECEPTION.time}, ${RECEPTION.place} (${RECEPTION.address[0]})`,
     "",
-    `${plural ? "Su" : "Tu"} invitación personal (${maxGuests} ${plural ? "lugares" : "lugar"}):`,
+    reserved,
+    "",
+    plural
+      ? "Abran su invitación personal y confirmen la asistencia de cada uno aquí:"
+      : "Abre tu invitación personal y confirma tu asistencia aquí:",
     url,
     "",
-    `Por favor ${plural ? "confirmen" : "confirma"} ${plural ? "su" : "tu"} asistencia desde el enlace.`,
-    "Código de vestimenta: gala (evitar cualquier tono de azul).",
+    ...(deadlineLabel ? [`Por favor ${plural ? "confirmen" : "confirma"} antes del ${deadlineLabel}.`] : []),
+    DRESS_CODE_NOTE,
     "",
     "Con cariño, Kelly y Kyara",
+  ].join("\n");
+}
+
+/** Friendly reminder for families that opened the invitation but still have members "por definir". */
+export function reminderMessage({ familyName, memberNames, pendingNames, url, deadline }: MessageData & { pendingNames: string[] }) {
+  const plural = memberNames.length !== 1;
+  const deadlineLabel = formatLongDate(deadline);
+  // Only list names when some (not all) members are still undecided.
+  const partial = plural && pendingNames.length > 0 && pendingNames.length < memberNames.length;
+
+  return [
+    `¡Hola, ${familyName}! ✨`,
+    "",
+    `${plural ? "Les" : "Te"} recordamos con cariño que nos encantaría saber si ${plural ? "podrán" : "podrás"} acompañarnos en nuestros XV años, el sábado 28 de noviembre.`,
+    ...(partial ? ["", `Aún nos falta saber de: ${joinNames(pendingNames)}.`] : []),
+    "",
+    `${plural ? "Pueden" : "Puedes"} responder en un minuto desde ${plural ? "su" : "tu"} invitación personal:`,
+    url,
+    ...(deadlineLabel ? ["", `${plural ? "Les" : "Te"} pedimos confirmar antes del ${deadlineLabel}.`] : []),
+    "",
+    "¡Gracias! Kelly y Kyara",
   ].join("\n");
 }

@@ -3,10 +3,11 @@ import { asc, desc } from "drizzle-orm";
 import { checkAdmin } from "@/app/actions/adminAuth";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { AdminDashboard, type AdminTab } from "@/components/admin/AdminDashboard";
-import type { AdminInvitation, AdminMedia } from "@/components/admin/types";
+import type { AdminFamily, AdminMedia } from "@/components/admin/types";
 import { db } from "@/db";
 import { invitations, guests, media } from "@/db/schema";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatTime } from "@/lib/format";
+import { getDeadline, memberOrder } from "@/lib/invitations";
 import { getSiteUrl } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Panel · Kelly & Kyara" };
@@ -19,31 +20,47 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   }
 
   const { tab } = await searchParams;
-  const [invitationRows, guestRows, mediaRows, siteUrl] = await Promise.all([
-    db.select().from(invitations).orderBy(desc(invitations.createdAt)),
-    db.select().from(guests).orderBy(asc(guests.createdAt)),
+  const [familyRows, memberRows, mediaRows, deadline, siteUrl] = await Promise.all([
+    db.select().from(invitations).orderBy(desc(invitations.createdAt), asc(invitations.name)),
+    db.select().from(guests).orderBy(...memberOrder),
     db.select().from(media).orderBy(desc(media.createdAt)),
+    getDeadline(),
     getSiteUrl(),
   ]);
 
-  const adminInvitations: AdminInvitation[] = invitationRows.map((inv) => ({
+  const membersByFamily = new Map<string, typeof memberRows>();
+  for (const m of memberRows) {
+    if (!m.invitationId) continue;
+    const list = membersByFamily.get(m.invitationId) ?? [];
+    list.push(m);
+    membersByFamily.set(m.invitationId, list);
+  }
+
+  const families: AdminFamily[] = familyRows.map((inv) => ({
     id: inv.id,
     token: inv.token,
     name: inv.name,
     greeting: inv.greeting,
-    maxGuests: inv.maxGuests,
     status: inv.status ?? "pending",
     phone: inv.phone,
     notes: inv.notes,
     isActive: inv.isActive !== false,
     createdAt: formatDateTime(inv.createdAt),
+    sentAt: formatDateTime(inv.sentAt),
     openedAt: formatDateTime(inv.openedAt),
     respondedAt: formatDateTime(inv.respondedAt),
-    checkedInAt: formatDateTime(inv.checkedInAt),
-    checkedInAtIso: inv.checkedInAt?.toISOString() ?? null,
-    attendees: guestRows
-      .filter((g) => g.invitationId === inv.id)
-      .map((g) => ({ id: g.id, name: g.name, dietaryRestrictions: g.dietaryRestrictions })),
+    checkedInAt: formatTime(inv.checkedInAt),
+    songRequest: inv.songRequest,
+    guestMessage: inv.guestMessage,
+    members: (membersByFamily.get(inv.id) ?? []).map((g) => ({
+      id: g.id,
+      name: g.name,
+      isChild: g.isChild,
+      rsvp: g.rsvp,
+      dietaryRestrictions: g.dietaryRestrictions,
+      checkedInAt: formatTime(g.checkedInAt),
+      checkedInAtIso: g.checkedInAt?.toISOString() ?? null,
+    })),
   }));
 
   const adminMedia: AdminMedia[] = mediaRows.map((m) => ({
@@ -58,9 +75,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   return (
     <AdminDashboard
-      invitations={adminInvitations}
+      families={families}
       media={adminMedia}
       siteUrl={siteUrl}
+      deadline={deadline?.toISOString() ?? null}
       initialTab={TABS.includes(tab as AdminTab) ? (tab as AdminTab) : "invitados"}
       usingDefaultPassword={!process.env.ADMIN_PASSWORD}
     />

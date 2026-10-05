@@ -3,6 +3,15 @@
  * the WhatsApp message. Edit here and every place stays consistent.
  */
 
+export const EVENT_DATE_LABEL = "Sábado 28 de noviembre de 2026";
+/** Start of the ceremony (7:30 p. m. in Yucatán, UTC-6) and of the reception (9:00 p. m.). */
+export const CEREMONY_STARTS_AT = new Date("2026-11-29T01:30:00Z");
+export const RECEPTION_STARTS_AT = new Date("2026-11-29T03:00:00Z");
+/** Last valid day for the RSVP deadline (the day of the party). */
+export const LAST_DEADLINE_DAY = "2026-11-28";
+
+export const DRESS_CODE_NOTE = "Código de vestimenta: gala (evitar cualquier tono de azul).";
+
 export type Venue = {
   label: string;
   place: string;
@@ -51,7 +60,7 @@ export const CALENDAR_URL =
   encodeURIComponent(
     `Ceremonia ${CEREMONY.time}: ${CEREMONY.place}, ${CEREMONY.address.join(", ")}.\n` +
       `Recepción ${RECEPTION.time}: ${RECEPTION.place}, ${RECEPTION.address.join(", ")}.\n` +
-      "Código de vestimenta: gala (evitar cualquier tono de azul)."
+      DRESS_CODE_NOTE
   ) +
   "&location=" +
   encodeURIComponent(`${CEREMONY.place}, ${CEREMONY.address.join(", ")}`);
