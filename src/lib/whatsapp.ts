@@ -1,3 +1,5 @@
+import { CEREMONY, RECEPTION } from "@/lib/event";
+
 /** Digits for wa.me: Mexican 10-digit numbers get the 52 country code; other formats are kept. */
 export function whatsappNumber(phone: string | null | undefined) {
   const digits = (phone ?? "").replace(/\D/g, "");
@@ -20,8 +22,8 @@ export function invitationMessage({ name, maxGuests, url }: { name: string; maxG
     `Con mucha alegría ${plural ? "los" : "te"} invitamos a celebrar los XV años de Kelly y Kyara.`,
     "",
     "Sábado 28 de noviembre de 2026",
-    "Ceremonia: 7:30 p. m., Iglesia de Guadalupe, Ticul",
-    "Recepción: 9:00 p. m., Calle 10 A x 31, Col. San Juan",
+    `Ceremonia: ${CEREMONY.time}, ${CEREMONY.place}, Ticul`,
+    `Recepción: ${RECEPTION.time}, ${RECEPTION.place} (${RECEPTION.address[0]})`,
     "",
     `${plural ? "Su" : "Tu"} invitación personal (${maxGuests} ${plural ? "lugares" : "lugar"}):`,
     url,

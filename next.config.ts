@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
     ],
+    // Keep Image Optimization well inside the free Hobby allowance: Blob URLs never change
+    // (random suffix), so optimized copies can be cached for 31 days, and fewer widths means
+    // fewer transformations per photo.
+    minimumCacheTTL: 2678400,
+    deviceSizes: [640, 828, 1080, 1600],
+    imageSizes: [128, 256, 384],
   },
 };
 

@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { FloralCorner, Ornament, SparkleField, Butterfly, GoldLines } from "@/components/decor";
+import { Ornament, SparkleField, Butterfly, GoldLines } from "@/components/decor";
 import { Reveal } from "@/components/Reveal";
 
 type Photo = { url: string; focalX: string | null; focalY: string | null } | null;
@@ -8,8 +8,6 @@ export const HeroSection = ({ cover }: { cover: Photo }) => {
   return (
     <section className="relative flex min-h-[100svh] w-full flex-col items-center justify-center overflow-hidden px-6 py-24 text-center watercolor-wash">
       <SparkleField />
-      <FloralCorner position="top-right" size="w-64 md:w-[28rem]" />
-      <FloralCorner position="bottom-left" size="w-64 md:w-[28rem]" />
       <Butterfly className="right-[8%] top-[38%] w-12 md:w-20" rotate={16} />
       <Butterfly className="bottom-[22%] left-[6%] w-10 md:w-16" rotate={-20} delay={2} />
 
@@ -45,7 +43,6 @@ export const HeroSection = ({ cover }: { cover: Photo }) => {
           <span className="border-x border-gold/50 px-5 text-5xl md:text-6xl">28</span>
           <span className="text-xl md:text-2xl">2026</span>
         </div>
-        <p className="mt-3 font-sans text-xs uppercase tracking-[0.3em] text-blue-mist">Ticul, Yucatán</p>
 
         <GoldLines className="mt-10" />
 

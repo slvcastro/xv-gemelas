@@ -1,70 +1,48 @@
 import { MapPin, Clock, CalendarPlus, Church, GlassWater } from "lucide-react";
 import { SectionTitle, Sparkle } from "@/components/decor";
 import { Reveal } from "@/components/Reveal";
+import { CALENDAR_URL, CEREMONY, RECEPTION, type Venue } from "@/lib/event";
 
-const EVENTS = [
-  {
-    icon: Church,
-    label: "Ceremonia religiosa",
-    place: "Iglesia de Guadalupe",
-    time: "7:30 p. m.",
-    address: ["C. 13, Ticul, 97862", "Ticul, Yucatán"],
-    mapUrl: "https://maps.app.goo.gl/MgsqCLBZAn3a8kNn7",
-    cta: "Cómo llegar a la iglesia",
-  },
-  {
-    icon: GlassWater,
-    label: "Recepción",
-    place: "Ticul, Yucatán",
-    time: "9:00 p. m.",
-    address: ["Calle 10 A x 31", "Col. San Juan"],
-    mapUrl: "https://maps.app.goo.gl/AykNL1cFP1HyLVdcA",
-    cta: "Cómo llegar a la recepción",
-  },
+const EVENTS: { venue: Venue; icon: typeof Church; cta: string }[] = [
+  { venue: CEREMONY, icon: Church, cta: "Cómo llegar" },
+  { venue: RECEPTION, icon: GlassWater, cta: "Cómo llegar" },
 ];
-
-// 7:30 p. m. (UTC-6) → 01:30 UTC del día siguiente; termina 2:00 a. m. local.
-const CALENDAR_URL =
-  "https://calendar.google.com/calendar/render?action=TEMPLATE" +
-  "&text=" + encodeURIComponent("XV Años de Kelly & Kyara") +
-  "&dates=20261129T013000Z/20261129T080000Z" +
-  "&details=" + encodeURIComponent("Ceremonia 7:30 p. m. en la Iglesia de Guadalupe, Ticul.\nRecepción 9:00 p. m. en Calle 10 A x 31, Col. San Juan.\nCódigo de vestimenta: Gala (evitar tonos azules).") +
-  "&location=" + encodeURIComponent("Iglesia de Guadalupe, C. 13, Ticul, Yucatán");
 
 export const EventDetailsSection = () => {
   return (
     <section className="relative w-full overflow-hidden px-6 py-24">
       <div className="absolute inset-0 gold-dust opacity-30" aria-hidden="true" />
-      <div className="relative mx-auto max-w-5xl">
+      <div className="relative mx-auto max-w-4xl">
         <SectionTitle eyebrow="Sábado 28 de noviembre de 2026" title="¿Dónde y cuándo?" />
 
-        <div className="mt-14 grid gap-8 md:grid-cols-2">
-          {EVENTS.map((ev, i) => (
-            <Reveal key={ev.label} delay={i * 0.12}>
-              <div className="card-gold relative flex h-full flex-col items-center px-6 py-10 text-center">
+        <div className="mt-14 grid gap-6 md:grid-cols-2 md:gap-8">
+          {EVENTS.map(({ venue, icon: Icon, cta }, i) => (
+            <Reveal key={venue.label} delay={i * 0.12}>
+              <article className="card-gold relative flex h-full flex-col items-center px-6 py-10 text-center">
                 <Sparkle className="absolute right-5 top-5 h-3 w-3 animate-twinkle text-gold" />
                 <div className="flex h-14 w-14 items-center justify-center rounded-full border border-gold/50 text-gold">
-                  <ev.icon size={24} strokeWidth={1.3} />
+                  <Icon size={24} strokeWidth={1.3} />
                 </div>
-                <p className="mt-5 font-sans text-[11px] uppercase tracking-[0.35em] text-blue-mist">{ev.label}</p>
-                <p className="mt-3 font-serif text-3xl text-gold">{ev.place}</p>
+                <p className="mt-5 font-sans text-[11px] uppercase tracking-[0.35em] text-blue-mist">{venue.label}</p>
+                <h3 className="mt-3 font-serif text-2xl text-gold md:text-3xl">{venue.place}</h3>
                 <p className="mt-3 flex items-center gap-2 font-sans text-lg text-blue-ice">
-                  <Clock size={16} className="text-gold-muted" /> {ev.time}
+                  <Clock size={16} className="text-gold-muted" /> {venue.time}
                 </p>
-                <div className="mt-3 space-y-0.5 font-sans text-sm text-blue-ice/70">
-                  {ev.address.map((l) => (
-                    <p key={l}>{l}</p>
-                  ))}
-                </div>
+                <address className="mt-3 space-y-0.5 font-sans text-sm not-italic text-blue-ice/75">
+                  <p>{venue.address[0]}</p>
+                  <p>{venue.address[1]}</p>
+                </address>
+                <p className="mt-2 font-mono text-[11px] tracking-wider text-blue-mist/60">Plus Code {venue.plusCode}</p>
                 <a
-                  href={ev.mapUrl}
+                  href={venue.mapUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-auto inline-flex items-center gap-2 border border-gold/50 px-6 py-3 font-sans text-[11px] uppercase tracking-[0.25em] text-gold transition-colors hover:bg-gold hover:text-navy md:mt-8"
+                  className="mt-8 inline-flex items-center gap-2 border border-gold/50 px-6 py-3 font-sans text-[11px] uppercase tracking-[0.25em] text-gold transition-colors hover:bg-gold hover:text-navy"
+                  aria-label={`${cta}: ${venue.place} (Google Maps)`}
                 >
-                  <MapPin size={14} /> {ev.cta}
+                  <MapPin size={14} /> {cta}
                 </a>
-              </div>
+              </article>
             </Reveal>
           ))}
         </div>

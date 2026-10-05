@@ -50,30 +50,6 @@ export function GoldLines({ className = "" }: { className?: string }) {
   );
 }
 
-/** Ramo de flores acuarela en una esquina. */
-export function FloralCorner({
-  position,
-  className = "",
-  size = "w-56 md:w-80",
-}: {
-  position: "top-right" | "bottom-left" | "top-left" | "bottom-right";
-  className?: string;
-  size?: string;
-}) {
-  // La imagen original tiene las flores arriba a la derecha.
-  const transforms: Record<typeof position, string> = {
-    "top-right": "top-0 right-0",
-    "bottom-left": "bottom-0 left-0 rotate-180",
-    "top-left": "top-0 left-0 -scale-x-100",
-    "bottom-right": "bottom-0 right-0 -scale-y-100",
-  };
-  return (
-    <div className={`pointer-events-none absolute select-none ${transforms[position]} ${size} ${className}`} aria-hidden="true">
-      <Image src="/decor/floral-corner.webp" alt="" width={886} height={900} className="h-auto w-full" />
-    </div>
-  );
-}
-
 /** Mariposa dorada flotando. */
 export function Butterfly({
   className = "",

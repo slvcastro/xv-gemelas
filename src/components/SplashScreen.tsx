@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FloralCorner, Ornament, SparkleField, Butterfly } from "@/components/decor";
+import { Ornament, SparkleField, Butterfly } from "@/components/decor";
 
 /**
  * Pantalla de entrada ("sobre"). Bloquea el scroll hasta que el invitado toca
@@ -28,8 +28,6 @@ export const SplashScreen = ({ guestName }: { guestName?: string | null }) => {
           className="fixed inset-0 z-[60] flex flex-col items-center justify-center overflow-hidden bg-navy watercolor-wash"
         >
           <SparkleField />
-          <FloralCorner position="top-right" size="w-60 md:w-96" />
-          <FloralCorner position="bottom-left" size="w-60 md:w-96" />
           <Butterfly className="left-[12%] top-[18%] w-12 md:w-16" rotate={-18} />
           <Butterfly className="bottom-[16%] right-[12%] w-10 md:w-14" rotate={14} delay={1.5} />
 

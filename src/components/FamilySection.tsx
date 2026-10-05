@@ -1,4 +1,4 @@
-import { SectionTitle, FloralCorner } from "@/components/decor";
+import { SectionTitle } from "@/components/decor";
 import { Reveal } from "@/components/Reveal";
 
 const GODPARENTS = [
@@ -9,9 +9,6 @@ const GODPARENTS = [
 export const FamilySection = () => {
   return (
     <section className="relative w-full overflow-hidden bg-blue-dark/40 px-6 py-24">
-      <FloralCorner position="top-left" size="w-40 md:w-64" className="opacity-80" />
-      <FloralCorner position="bottom-right" size="w-40 md:w-64" className="opacity-80" />
-
       <div className="relative mx-auto max-w-4xl">
         <SectionTitle eyebrow="Con la bendición de Dios y" title="Nuestra familia" />
 
