@@ -1,6 +1,12 @@
 /* Componentes decorativos de la temática "Noche azul y oro", en lenguaje art déco:
    líneas finas dobles, esquinas escalonadas, rombos, estrellas y rayos. Todo es SVG/CSS y server-safe
-   (sin hooks), así que se pueden usar desde componentes de servidor o de cliente. */
+   (sin hooks), así que se pueden usar desde componentes de servidor o de cliente.
+   Las clases `fx-*` / `orn-*` son animaciones de entrada (globals.css): se trazan al montarse o, dentro
+   de <InView>, al entrar en pantalla. Con movimiento reducido todo se ve completo y quieto. */
+import { InView } from "@/components/InView";
+
+/** Retraso de una animación de entrada (`--d`), en segundos. */
+export const fxDelay = (s: number) => ({ "--d": `${s}s` }) as React.CSSProperties;
 
 /** Rounds SVG coordinates so server and client always print the same attribute strings. */
 const n = (v: number) => Math.round(v * 100) / 100;
@@ -35,28 +41,29 @@ function decoStar(cx: number, cy: number, long: number, short: number, waist: nu
  * Remate de títulos: estrella déco de 8 puntas dentro de un rombo, flanqueada por una doble línea
  * escalonada que remata en rombos.
  */
-export function Ornament({ className = "" }: { className?: string }) {
+export function Ornament({ className = "", delay }: { className?: string; /** s */ delay?: number }) {
   const cx = 120;
   const cy = 20;
   return (
     <svg
       viewBox="0 0 240 40"
       className={`text-gold ${className}`}
+      style={delay === undefined ? undefined : fxDelay(delay)}
       fill="none"
       stroke="currentColor"
       strokeWidth="1"
       strokeLinecap="round"
       aria-hidden="true"
     >
-      <path d={diamond(cx, cy, 15)} opacity="0.6" />
-      <path d={decoStar(cx, cy, 11.5, 6, 2.2)} fill="currentColor" stroke="none" />
-      {/* Doble línea con escalón a cada lado */}
-      <path d={`M14 ${cy}H${cx - 26}V${cy - 4}H${cx - 20}`} opacity="0.9" />
-      <path d={`M226 ${cy}H${cx + 26}V${cy - 4}H${cx + 20}`} opacity="0.9" />
-      <path d={`M46 ${cy + 4.5}H${cx - 20}`} opacity="0.45" />
-      <path d={`M194 ${cy + 4.5}H${cx + 20}`} opacity="0.45" />
-      <path d={diamond(8, cy, 3.2)} fill="currentColor" stroke="none" />
-      <path d={diamond(232, cy, 3.2)} fill="currentColor" stroke="none" />
+      <path className="orn-line" pathLength={1} d={diamond(cx, cy, 15)} opacity="0.6" />
+      <path className="orn-gem" d={decoStar(cx, cy, 11.5, 6, 2.2)} fill="currentColor" stroke="none" />
+      {/* Doble línea con escalón a cada lado (se trazan del centro hacia afuera) */}
+      <path className="orn-line" pathLength={1} d={`M${cx - 20} ${cy - 4}H${cx - 26}V${cy}H14`} opacity="0.9" />
+      <path className="orn-line" pathLength={1} d={`M${cx + 20} ${cy - 4}H${cx + 26}V${cy}H226`} opacity="0.9" />
+      <path className="orn-line" pathLength={1} d={`M${cx - 20} ${cy + 4.5}H46`} opacity="0.45" />
+      <path className="orn-line" pathLength={1} d={`M${cx + 20} ${cy + 4.5}H194`} opacity="0.45" />
+      <path className="orn-end" d={diamond(8, cy, 3.2)} fill="currentColor" stroke="none" />
+      <path className="orn-end" d={diamond(232, cy, 3.2)} fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -65,14 +72,14 @@ export function Ornament({ className = "" }: { className?: string }) {
 export function DecoDivider({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center justify-center gap-3 text-gold ${className}`} aria-hidden="true">
-      <span className="h-px flex-1 bg-gradient-to-r from-transparent to-gold/60" />
-      <svg viewBox="0 0 44 14" className="h-3.5 w-11 shrink-0" fill="currentColor">
+      <span className="fx-grow-l h-px flex-1 bg-gradient-to-r from-transparent to-gold/60" />
+      <svg viewBox="0 0 44 14" className="fx-pop h-3.5 w-11 shrink-0" fill="currentColor">
         <path d={diamond(7, 7, 2.2)} opacity="0.6" />
         <path d={diamond(22, 7, 6.5)} fill="none" stroke="currentColor" strokeWidth="1" />
         <path d={diamond(22, 7, 3)} />
         <path d={diamond(37, 7, 2.2)} opacity="0.6" />
       </svg>
-      <span className="h-px flex-1 bg-gradient-to-l from-transparent to-gold/60" />
+      <span className="fx-grow-r h-px flex-1 bg-gradient-to-l from-transparent to-gold/60" />
     </div>
   );
 }
@@ -306,13 +313,22 @@ export function NightBackdrop() {
   );
 }
 
-/** Encabezado de sección estándar: estrella déco + antetítulo + título foil. */
+/**
+ * Encabezado de sección estándar: estrella déco + antetítulo + título foil. Al entrar en pantalla
+ * el ornamento se traza, el título se escribe de izquierda a derecha y un brillo de lámina lo barre.
+ */
 export function SectionTitle({ eyebrow, title, className = "" }: { eyebrow?: string; title: string; className?: string }) {
   return (
-    <div className={`flex flex-col items-center text-center ${className}`}>
+    <InView className={`flex flex-col items-center text-center ${className}`}>
       <Ornament className="mb-5 h-8 w-48 md:h-9 md:w-56" />
-      {eyebrow && <p className="eyebrow mb-3 text-balance text-blue-mist">{eyebrow}</p>}
-      <h2 className="text-foil font-serif text-[2rem] leading-tight md:text-[2.75rem]">{title}</h2>
-    </div>
+      {eyebrow && (
+        <p className="eyebrow fx-in mb-3 text-balance text-blue-mist" style={fxDelay(0.2)}>
+          {eyebrow}
+        </p>
+      )}
+      <h2 className="text-foil fx-title font-serif text-[2rem] leading-tight md:text-[2.75rem]" style={fxDelay(0.3)}>
+        {title}
+      </h2>
+    </InView>
   );
 }
