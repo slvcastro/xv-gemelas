@@ -96,7 +96,9 @@ export function FamilyForm({
     setSaving(true);
     const data = {
       name,
-      members: named.map((r) => ({ id: r.id, name: r.name, isChild: r.isChild, ...(editing && { rsvp: r.rsvp }) })),
+      // Only answers the admin actually changed are sent, so a stale form never overwrites what the
+      // family answered while it was open.
+      members: named.map((r) => ({ id: r.id, name: r.name, isChild: r.isChild, ...(editing && r.rsvp !== r.savedRsvp && { rsvp: r.rsvp }) })),
       phone,
       greeting,
       notes,
