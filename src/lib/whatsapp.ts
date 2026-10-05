@@ -36,7 +36,7 @@ export function invitationMessage({ familyName, greeting, memberNames, url, dead
     `¡Hola, ${familyName}! ✨`,
     ...(greeting?.trim() ? ["", greeting.trim()] : []),
     "",
-    `Con mucha alegría ${plural ? "los" : "te"} invitamos a celebrar los XV años de Kelly y Kyara.`,
+    `Con mucha alegría ${plural ? "los" : "te"} invitamos a celebrar nuestros XV años.`,
     "",
     EVENT_DATE_LABEL,
     `Ceremonia: ${CEREMONY.time}, ${CEREMONY.place}, Ticul`,

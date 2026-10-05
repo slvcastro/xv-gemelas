@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { Check, CircleHelp, X } from "lucide-react";
 import { RSVP_LABELS, type FamilyStatus, type Rsvp } from "@/lib/families";
 import { STATUS_LABELS } from "./types";
@@ -75,6 +75,7 @@ export function Modal({
   dismissOnBackdrop?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     const dialog = ref.current;
@@ -85,6 +86,7 @@ export function Modal({
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleId}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
@@ -97,7 +99,9 @@ export function Modal({
       }`}
     >
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gold/15 bg-navy px-5 py-4">
-        <h2 className="font-serif text-xl text-gold">{title}</h2>
+        <h2 id={titleId} className="font-serif text-xl text-gold">
+          {title}
+        </h2>
         <button type="button" onClick={onClose} className="-m-2 p-2 text-blue-mist hover:text-gold" aria-label="Cerrar">
           <X size={20} />
         </button>

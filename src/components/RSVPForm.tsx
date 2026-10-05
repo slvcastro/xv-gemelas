@@ -93,6 +93,8 @@ export const RSVPForm = ({
   const setAnswer = (id: string, value: Rsvp) => {
     setAnswers((prev) => ({ ...prev, [id]: value }));
     setMissing((prev) => prev.filter((m) => m !== id));
+    // The pending ones stay highlighted; the alert would be stale.
+    setError(null);
   };
 
   const setAll = (value: Rsvp) => {
@@ -509,11 +511,9 @@ function ThankYouCard({
         {(saved.songRequest || saved.guestMessage) && (
           <div className="mt-6 w-full space-y-2 text-pretty font-sans text-xs leading-relaxed text-blue-mist">
             {saved.songRequest && (
-              <p className="flex items-start justify-center gap-2">
-                <Music size={13} className="mt-0.5 shrink-0 text-gold" aria-hidden="true" />
-                <span>
-                  Canción sugerida: <span className="text-blue-ice">{saved.songRequest}</span>
-                </span>
+              <p>
+                <Music size={13} className="mr-1.5 inline-block align-[-2px] text-gold" aria-hidden="true" />
+                Canción sugerida: <span className="text-blue-ice">{saved.songRequest}</span>
               </p>
             )}
             {saved.guestMessage && <p>Kelly y Kyara leerán {single ? "tu" : "su"} mensaje con mucho cariño.</p>}

@@ -41,7 +41,8 @@ export function ImportFamilies({
       setError(result.error);
       return;
     }
-    const skipped = result.skipped.length > 0 ? ` Se omitieron ${plural(result.skipped.length, "familia que ya existía", "familias que ya existían")}.` : "";
+    const n = result.skipped.length;
+    const skipped = n === 0 ? "" : n === 1 ? " Se omitió 1 familia que ya existía." : ` Se omitieron ${n} familias que ya existían.`;
     onDone(
       result.created > 0
         ? `Se importaron ${plural(result.created, "familia", "familias")} con ${plural(result.members, "invitado", "invitados")}.${skipped}`

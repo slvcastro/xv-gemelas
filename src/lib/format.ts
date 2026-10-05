@@ -36,7 +36,8 @@ export function formatLongDate(value: Date | string | null | undefined) {
 
 /** "martes 10 de noviembre" (Yucatán time). */
 export function formatLongDateWeekday(value: Date | string | null | undefined) {
-  return value ? longDateWeekday.format(new Date(value)) : null;
+  // es-MX prints "martes, 10 de noviembre"; in a sentence ("antes del martes 10…") the comma reads oddly.
+  return value ? longDateWeekday.format(new Date(value)).replace(",", "") : null;
 }
 
 /** Value for <input type="date"> ("2026-11-10"), in Yucatán time. */
