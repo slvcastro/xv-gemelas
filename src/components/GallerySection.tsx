@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
-import { SectionTitle } from "@/components/decor";
+import { ArchFrame, SectionTitle } from "@/components/decor";
 import type { PublicPhoto } from "@/lib/media";
 
 const pos = (p: PublicPhoto) => `${p.focalX ?? 50}% ${p.focalY ?? 50}%`;
@@ -53,27 +53,25 @@ export const GallerySection = ({ portraits, photos }: { portraits: PublicPhoto[]
   const openPhoto = (p: PublicPhoto) => setOpen(all.indexOf(p));
 
   return (
-    <section className="relative w-full overflow-hidden px-4 py-24 sm:px-6">
+    <section className="relative w-full overflow-hidden px-4 py-20 sm:px-6 md:py-28">
       <div className="mx-auto flex max-w-3xl flex-col items-center">
         <SectionTitle eyebrow="Momentos" title="Nuestra galería" />
 
         {portraits.length > 0 && (
-          <div className={`mt-14 grid w-full gap-8 ${portraits.length > 1 ? "sm:grid-cols-2" : "max-w-sm"}`}>
+          <div className={`mt-14 grid w-full justify-items-center gap-x-5 gap-y-10 sm:gap-8 ${portraits.length > 1 ? "grid-cols-2" : "max-w-sm"}`}>
             {portraits.map((p) => (
-              <button key={p.id} onClick={() => setOpen(all.indexOf(p))} className="group flex flex-col items-center">
-                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-t-full border border-gold/50 p-2">
-                  <div className="relative h-full w-full overflow-hidden rounded-t-full">
-                    <Image
-                      src={p.url}
-                      alt={p.label ? `Retrato de ${p.label}` : "Retrato"}
-                      fill
-                      sizes="(min-width: 640px) 380px, 90vw"
-                      className="object-cover transition-transform duration-700 group-hover:scale-105"
-                      style={{ objectPosition: pos(p) }}
-                    />
-                  </div>
-                </div>
-                {p.label && <span className="mt-4 font-script text-4xl text-gold">{p.label}</span>}
+              <button key={p.id} onClick={() => setOpen(all.indexOf(p))} className="group flex w-full flex-col items-center">
+                <ArchFrame className="w-full max-w-[19rem]">
+                  <Image
+                    src={p.url}
+                    alt={p.label ? `Retrato de ${p.label}` : "Retrato"}
+                    fill
+                    sizes="(min-width: 640px) 304px, 45vw"
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                    style={{ objectPosition: pos(p) }}
+                  />
+                </ArchFrame>
+                {p.label && <span className="mt-5 font-script text-[2rem] leading-tight text-gold sm:mt-7 sm:text-[2.5rem]">{p.label}</span>}
               </button>
             ))}
           </div>

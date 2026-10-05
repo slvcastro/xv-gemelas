@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SectionTitle } from "@/components/decor";
+import { CornerTicks, SectionTitle } from "@/components/decor";
 
 /** Portada general: el invitado escribe el código de 6 letras de su invitación para abrir su pase. */
 export const CheckInvitation = () => {
@@ -20,12 +20,13 @@ export const CheckInvitation = () => {
       <div className="absolute inset-0 gold-dust opacity-30" aria-hidden="true" />
       <div className="relative mx-auto w-full max-w-md">
         <SectionTitle eyebrow="R.S.V.P." title="Confirmar asistencia" />
-        <p className="mt-6 font-sans text-sm leading-relaxed text-blue-ice/80">
+        <p className="mt-6 text-pretty font-sans text-sm leading-relaxed text-blue-ice/80">
           Escribe el código que viene en tu invitación para abrir tu pase personal y confirmar cuántas personas asistirán.
         </p>
 
-        <form onSubmit={handleCheck} className="card-gold mt-10 flex flex-col gap-6 px-6 py-8">
-          <label htmlFor="invite-code" className="font-sans text-[11px] uppercase tracking-[0.3em] text-blue-mist">
+        <form onSubmit={handleCheck} className="card-gold relative mt-10 flex flex-col gap-6 px-6 py-8">
+          <CornerTicks className="inset-2.5" />
+          <label htmlFor="invite-code" className="eyebrow text-blue-mist">
             Tu código personal
           </label>
           <input
@@ -43,7 +44,7 @@ export const CheckInvitation = () => {
           <button
             type="submit"
             disabled={!clean}
-            className="bg-foil py-3.5 font-sans text-xs font-medium uppercase tracking-[0.3em] text-navy transition-opacity disabled:opacity-40"
+            className="bg-foil py-3.5 font-sans text-xs font-medium uppercase tracking-[0.3em] text-navy transition-opacity disabled:border disabled:border-gold/30 disabled:bg-none disabled:text-gold/50"
           >
             Abrir mi invitación
           </button>

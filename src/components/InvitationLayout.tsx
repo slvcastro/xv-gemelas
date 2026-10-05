@@ -40,10 +40,10 @@ export function InvitationLayout({
         <GallerySection portraits={media.portraits} photos={media.gallery} />
         {children}
 
-        <footer className="flex w-full flex-col items-center gap-4 border-t border-gold/15 bg-navy-deep px-6 py-14 text-center">
-          <Ornament className="h-6 w-36 opacity-70" />
-          <p className="font-script text-4xl text-gold">Kelly &amp; Kyara</p>
-          <p className="font-sans text-[11px] uppercase tracking-[0.35em] text-blue-mist/70">28 · 11 · 2026</p>
+        <footer className="relative flex w-full flex-col items-center gap-3 border-t border-gold/15 bg-navy-deep px-6 py-16 text-center">
+          <Ornament className="h-8 w-48 opacity-80" />
+          <p className="font-script text-[2.5rem] leading-tight text-gold md:text-5xl">Kelly &amp; Kyara</p>
+          <p className="eyebrow text-blue-mist/70">28 · 11 · 2026</p>
         </footer>
       </div>
     </main>

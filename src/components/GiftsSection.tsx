@@ -40,20 +40,26 @@ export const GiftsSection = () => {
   ].filter((r) => r.value);
 
   return (
-    <section className="relative flex w-full flex-col items-center overflow-hidden bg-blue-dark/40 px-6 py-24 text-center">
+    <section className="relative flex w-full flex-col items-center overflow-hidden bg-blue-dark/40 px-6 py-20 text-center md:py-28">
       <div className="absolute inset-0 gold-dust opacity-30" aria-hidden="true" />
       <div className="relative flex flex-col items-center">
-        <Ornament className="mb-4 h-7 w-44" />
-        <Gift size={30} strokeWidth={1.1} className="mb-4 text-gold" />
-        <h2 className="text-foil mb-6 font-serif text-3xl md:text-5xl">Mesa de regalos</h2>
-        <p className="mb-8 max-w-lg font-sans text-sm leading-relaxed text-blue-ice/80 md:text-base">
+        <Ornament className="mb-5 h-8 w-48 md:h-9 md:w-56" />
+        <div className="relative mb-5 flex h-14 w-14 items-center justify-center text-gold">
+          <span className="absolute inset-[8px] rotate-45 border border-gold/60" aria-hidden="true" />
+          <span className="absolute inset-[12px] rotate-45 border border-gold/25" aria-hidden="true" />
+          <Gift size={20} strokeWidth={1.3} className="relative" />
+        </div>
+        <h2 className="text-foil mb-6 font-serif text-[2rem] leading-tight md:text-[2.75rem]">Mesa de regalos</h2>
+        <p className="mb-9 max-w-lg text-pretty font-sans text-base font-light leading-relaxed text-blue-ice/80 md:text-[1.0625rem]">
           Su presencia es nuestro regalo más preciado. Si desean tener un detalle adicional con nosotras,
           contaremos con <span className="text-gold">lluvia de sobres</span> el día del evento.
         </p>
 
-        <div className="card-gold flex items-center gap-3 px-6 py-4">
-          <Mail size={18} className="text-gold" />
-          <span className="font-sans text-xs uppercase tracking-[0.25em] text-blue-ice">Lluvia de sobres</span>
+        <div className="flex items-center gap-4 text-gold">
+          <span className="h-px w-10 bg-gradient-to-r from-transparent to-gold/60 md:w-14" aria-hidden="true" />
+          <Mail size={18} strokeWidth={1.4} aria-hidden="true" />
+          <span className="eyebrow text-gold">Lluvia de sobres</span>
+          <span className="h-px w-10 bg-gradient-to-l from-transparent to-gold/60 md:w-14" aria-hidden="true" />
         </div>
 
         {hasBank && (

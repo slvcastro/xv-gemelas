@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import { Check, Pencil, UserPlus, X } from "lucide-react";
 import { submitRSVP, type GuestInput } from "@/app/actions/invitations";
+import { CornerTicks } from "@/components/decor";
 
 type Status = "pending" | "confirmed" | "declined";
 type Row = GuestInput & { key: number };
@@ -77,7 +78,8 @@ export const RSVPForm = ({ token, name, maxGuests, initialStatus, existingAttend
 
   if (!isEditing) {
     return (
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-gold mx-auto w-full max-w-md px-5 py-10 text-center sm:px-8">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-gold relative mx-auto w-full max-w-md px-5 py-10 text-center sm:px-8">
+        <CornerTicks className="inset-2.5" />
         {saved.status === "confirmed" ? (
           <div className="flex flex-col items-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-full border border-gold/60 text-gold">
@@ -89,7 +91,7 @@ export const RSVPForm = ({ token, name, maxGuests, initialStatus, existingAttend
             </p>
 
             <div className="mt-8 flex flex-col items-center">
-              <p className="mb-3 font-sans text-[10px] uppercase tracking-[0.35em] text-blue-mist">Pase de acceso</p>
+              <p className="mb-3 eyebrow text-blue-mist">Pase de acceso</p>
               <div className="rounded-sm bg-white p-3 shadow-[0_0_40px_-8px_rgba(216,196,119,0.45)]">
                 <QRCodeSVG value={checkInUrl} size={184} fgColor="#05214B" bgColor="#ffffff" level="M" title={`Pase de ${name}`} />
               </div>
@@ -109,7 +111,7 @@ export const RSVPForm = ({ token, name, maxGuests, initialStatus, existingAttend
             </ul>
 
             <div className="mt-6 w-full border border-gold/25 px-4 py-4">
-              <p className="font-sans text-[10px] uppercase tracking-[0.3em] text-gold">Recordatorio · Gala</p>
+              <p className="eyebrow text-gold">Recordatorio · Gala</p>
               <p className="mt-2 font-sans text-sm text-blue-ice/80">
                 Por favor <strong className="font-medium text-gold">no uses ninguna tonalidad de azul</strong>: es el color reservado para las quinceañeras.
               </p>
@@ -138,9 +140,10 @@ export const RSVPForm = ({ token, name, maxGuests, initialStatus, existingAttend
   }
 
   return (
-    <form onSubmit={handleSubmit} className="card-gold mx-auto w-full max-w-md px-5 py-10 sm:px-8" noValidate>
+    <form onSubmit={handleSubmit} className="card-gold relative mx-auto w-full max-w-md px-5 py-10 sm:px-8" noValidate>
+      <CornerTicks className="inset-2.5" />
       <div className="text-center">
-        <p className="font-sans text-[10px] uppercase tracking-[0.35em] text-blue-mist">Hemos reservado</p>
+        <p className="eyebrow text-blue-mist">Hemos reservado</p>
         <p className="mt-2 font-serif text-3xl text-gold">{people(maxGuests)}</p>
         <p className="mt-6 font-sans text-sm text-blue-ice/85">¿Nos acompañarán?</p>
       </div>
@@ -179,7 +182,7 @@ export const RSVPForm = ({ token, name, maxGuests, initialStatus, existingAttend
               {rows.map((row, index) => (
                 <div key={row.key} className="relative border border-gold/20 bg-navy/40 px-4 pb-4 pt-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-sans text-[10px] uppercase tracking-[0.3em] text-blue-mist">Asistente {index + 1}</span>
+                    <span className="eyebrow text-blue-mist">Asistente {index + 1}</span>
                     {rows.length > 1 && (
                       <button
                         type="button"
@@ -222,7 +225,7 @@ export const RSVPForm = ({ token, name, maxGuests, initialStatus, existingAttend
               )}
 
               <div className="pt-2">
-                <label htmlFor="rsvp-phone" className="font-sans text-[10px] uppercase tracking-[0.3em] text-blue-mist">
+                <label htmlFor="rsvp-phone" className="eyebrow text-blue-mist">
                   WhatsApp (opcional)
                 </label>
                 <input
@@ -251,7 +254,7 @@ export const RSVPForm = ({ token, name, maxGuests, initialStatus, existingAttend
       <button
         type="submit"
         disabled={isSubmitting || !choice}
-        className="mt-8 w-full bg-foil py-4 font-sans text-xs font-medium uppercase tracking-[0.3em] text-navy transition-opacity disabled:opacity-40"
+        className="mt-8 w-full bg-foil py-4 font-sans text-xs font-medium uppercase tracking-[0.3em] text-navy transition-opacity disabled:border disabled:border-gold/30 disabled:bg-none disabled:text-gold/50"
       >
         {isSubmitting ? "Guardando…" : "Enviar respuesta"}
       </button>
