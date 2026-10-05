@@ -114,7 +114,7 @@ export function FamilyCard({
                 aria-expanded={changing === m.id}
                 aria-label={`${m.name}: ${RSVP_LABELS[m.rsvp]}. Cambiar respuesta`}
                 title="Cambiar respuesta"
-                className={`inline-flex h-7 w-7 shrink-0 items-center justify-center border transition-opacity hover:opacity-80 ${RSVP_TONE[m.rsvp]}`}
+                className={`inline-flex h-9 w-9 shrink-0 items-center justify-center border transition-opacity hover:opacity-80 sm:h-7 sm:w-7 ${RSVP_TONE[m.rsvp]}`}
               >
                 <RsvpIcon rsvp={m.rsvp} />
               </button>

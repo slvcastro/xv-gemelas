@@ -55,6 +55,7 @@ export function FamiliesPanel({
       sent: families.filter((f) => f.sentAt).length,
       opened: families.filter((f) => f.openedAt).length,
       arrived: families.reduce((n, f) => n + f.members.filter((m) => m.checkedInAt).length, 0),
+      arrivedYes: families.reduce((n, f) => n + f.members.filter((m) => m.checkedInAt && m.rsvp === "yes").length, 0),
     };
   }, [families]);
 
@@ -91,7 +92,13 @@ export function FamiliesPanel({
     ["Por definir", stats.pending, "aún no confirman"],
     ["Enviadas", stats.sent, `de ${stats.families} familias`],
     ["Abrieron", stats.opened, `de ${stats.families} familias`],
-    ["Ya llegaron", stats.arrived, `de ${stats.yes} que asistirán`],
+    [
+      "Ya llegaron",
+      stats.arrived,
+      stats.arrived > stats.arrivedYes
+        ? `${stats.arrivedYes} de ${stats.yes} confirmados · ${stats.arrived - stats.arrivedYes} sin confirmar`
+        : `de ${stats.yes} que asistirán`,
+    ],
   ];
 
   const toolbar = (
@@ -150,7 +157,7 @@ export function FamiliesPanel({
           <DeadlineControl deadline={deadline} notify={notify} />
 
           <div className="flex flex-col gap-3 md:flex-row md:items-center">
-            <div className="relative md:w-80">
+            <div className="relative md:w-96 md:shrink-0">
               <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-blue-mist" aria-hidden="true" />
               <input
                 type="search"

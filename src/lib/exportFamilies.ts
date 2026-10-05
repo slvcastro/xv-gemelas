@@ -24,6 +24,7 @@ export async function buildGuestWorkbook(siteUrl: string): Promise<XlsxSheet[]> 
   const allMembers = families.flatMap((f) => f.members.map((m) => ({ ...m, rsvp: m.rsvp as Rsvp, family: f })));
   const c = countMembers(allMembers);
   const checkedIn = allMembers.filter((m) => m.checkedInAt).length;
+  const checkedInYes = allMembers.filter((m) => m.checkedInAt && m.rsvp === "yes").length;
 
   const summary: XlsxSheet = {
     name: "Resumen",
@@ -45,7 +46,13 @@ export async function buildGuestWorkbook(siteUrl: string): Promise<XlsxSheet[]> 
       ["Por definir", c.pending, "Aún no confirman"],
       ["Familias que abrieron su invitación", families.filter((f) => f.openedAt).length, `de ${families.length}`],
       ["Familias a las que se envió", families.filter((f) => f.sentAt).length, `de ${families.length}`],
-      ["Ya llegaron (día del evento)", checkedIn, `de ${c.yes} que asistirán`],
+      [
+        "Ya llegaron (día del evento)",
+        checkedIn,
+        checkedIn > checkedInYes
+          ? `${checkedInYes} de ${c.yes} confirmados · ${checkedIn - checkedInYes} sin confirmar`
+          : `de ${c.yes} que asistirán`,
+      ],
       ["Fecha límite para confirmar", null, deadline ? formatLongDate(deadline) : "Sin fecha límite"],
       ["Archivo generado", new Date(), null],
     ],

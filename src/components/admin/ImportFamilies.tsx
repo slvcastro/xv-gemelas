@@ -25,7 +25,7 @@ export function ImportFamilies({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const existing = useMemo(() => new Set(existingNames.map(familyKey)), [existingNames]);
+  const existing = useMemo(() => new Map(existingNames.map((name) => [familyKey(name), name])), [existingNames]);
   const parsed = useMemo(() => parseFamiliesImport(text), [text]);
   const duplicates = parsed.families.filter((f) => existing.has(f.key));
   const toCreate = parsed.families.filter((f) => !existing.has(f.key));
@@ -75,6 +75,7 @@ export function ImportFamilies({
           onChange={(e) => setText(e.target.value)}
           placeholder={EXAMPLE}
           spellCheck={false}
+          wrap="off"
           className="w-full border border-gold/25 bg-navy/60 px-3 py-2.5 font-mono text-xs leading-relaxed text-blue-ice outline-none placeholder:text-blue-mist/40 focus:border-gold"
         />
         <p className="mt-1 font-sans text-[11px] text-blue-mist/80">
@@ -117,7 +118,10 @@ export function ImportFamilies({
               </p>
               <ul className="mt-1 max-h-32 list-disc space-y-0.5 overflow-y-auto pl-4">
                 {duplicates.map((f) => (
-                  <li key={f.key}>«{f.name}» ya está en tu lista; se omitirá para no duplicarla.</li>
+                  <li key={f.key}>
+                    «{f.name}» ya está en tu lista{existing.get(f.key) !== f.name && ` como «${existing.get(f.key)}»`}; se omitirá para no
+                    duplicarla.
+                  </li>
                 ))}
                 {parsed.warnings.map((w, i) => (
                   <li key={i}>{w.message}</li>

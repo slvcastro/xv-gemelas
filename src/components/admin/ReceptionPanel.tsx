@@ -163,14 +163,18 @@ export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; 
         <ul className="grid gap-3 lg:grid-cols-2">
           {visible.map((f) => {
             const yes = f.members.filter((m) => m.rsvp === "yes");
-            const inside = f.members.filter((m) => m.checkedInAt).length;
+            const insideYes = yes.filter((m) => m.checkedInAt).length;
+            const insideOther = f.members.filter((m) => m.checkedInAt && m.rsvp !== "yes").length;
+            const progress =
+              (yes.length > 0 ? `llegaron ${insideYes} de ${plural(yes.length, "confirmado", "confirmados")}` : "nadie confirmó") +
+              (insideOther > 0 ? ` · ${insideOther} sin confirmar ${insideOther === 1 ? "entró" : "entraron"}` : "");
             return (
               <li key={f.id} className="border border-gold/20 bg-blue-dark/40 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="font-serif text-xl leading-tight text-blue-ice">{f.name}</h3>
                     <p className="mt-0.5 font-sans text-xs text-blue-mist">
-                      <span className="font-mono text-gold/90">{f.token}</span> · llegaron {inside} de {plural(yes.length, "confirmado", "confirmados")}
+                      <span className="font-mono text-gold/90">{f.token}</span> · {progress}
                     </p>
                   </div>
                   <a href={`/admin/check-in?token=${f.token}`} className={`${btnSmall} shrink-0`} aria-label={`Abrir pase de ${f.name}`}>
