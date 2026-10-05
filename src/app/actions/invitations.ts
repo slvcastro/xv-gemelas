@@ -1,76 +1,90 @@
 "use server";
 
+import { and, eq } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import { db } from "@/db";
-import { invitations, guests } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
-import { normalizeToken } from "@/lib/invitations";
+import { guests, invitations } from "@/db/schema";
+import { LIMITS, cleanMultiline, cleanPhone, cleanText, isRsvp, type Rsvp } from "@/lib/families";
+import { loadPublicMembers, normalizeToken, recalcFamily, type PublicMember } from "@/lib/invitations";
 
-export type GuestInput = {
-  name: string;
-  dietaryRestrictions: string;
+export type RSVPAnswer = { id: string; rsvp: Rsvp; dietaryRestrictions?: string };
+
+export type RSVPPayload = {
+  members: RSVPAnswer[];
+  songRequest?: string;
+  guestMessage?: string;
+  phone?: string;
 };
 
-export async function submitRSVP(
-  rawToken: string,
-  status: "confirmed" | "declined",
-  attendeesList: GuestInput[],
-  phone?: string
-) {
+/** What was actually stored, so the thank-you card shows the real state. */
+export type SavedRSVP = {
+  members: PublicMember[];
+  songRequest: string | null;
+  guestMessage: string | null;
+};
+
+export type RSVPResult = { success: true; saved: SavedRSVP } | { success: false; error: string };
+
+/**
+ * Saves the answer of each member of a family (Asistirá / No asistirá / Por definir) plus the optional
+ * song, message and phone. Guests never send names: only ids of their own members, which are checked
+ * against the family of the token. Everything is written in one transaction and the family status is
+ * recalculated in the same batch.
+ */
+export async function submitRSVP(rawToken: string, payload: RSVPPayload): Promise<RSVPResult> {
   try {
-    if (status !== "confirmed" && status !== "declined") throw new Error("Respuesta no válida.");
     const token = normalizeToken(String(rawToken ?? ""));
-    const [inv] = token ? await db.select().from(invitations).where(eq(invitations.token, token)) : [];
-    if (!inv || inv.isActive === false) throw new Error("Invitación no encontrada.");
-
-    const cleanAttendees = (Array.isArray(attendeesList) ? attendeesList : [])
-      .map((a) => ({
-        name: String(a?.name ?? "").trim().slice(0, 120),
-        dietaryRestrictions: String(a?.dietaryRestrictions ?? "").trim().slice(0, 200),
-      }))
-      .filter((a) => a.name.length > 0);
-
-    if (status === "confirmed") {
-      if (cleanAttendees.length === 0) throw new Error("Agrega al menos el nombre de un asistente.");
-      if (cleanAttendees.length > inv.maxGuests) {
-        throw new Error(`Tu invitación es para ${inv.maxGuests} persona${inv.maxGuests === 1 ? "" : "s"}.`);
-      }
+    const [inv] = token
+      ? await db.select({ id: invitations.id, isActive: invitations.isActive }).from(invitations).where(eq(invitations.token, token))
+      : [];
+    if (!inv || inv.isActive === false) {
+      return { success: false, error: "Esta invitación ya no está disponible. Si crees que es un error, avísanos por WhatsApp." };
     }
 
-    const cleanPhone = String(phone ?? "").replace(/[^\d+\s()-]/g, "").trim().slice(0, 25);
+    const familyIds = new Set(
+      (await db.select({ id: guests.id }).from(guests).where(eq(guests.invitationId, inv.id))).map((g) => g.id)
+    );
 
-    // One transaction (Neon HTTP batch): status + replacing the guest list either all apply or none do.
-    const updateInvitation = db
-      .update(invitations)
-      .set({ status, phone: cleanPhone || inv.phone, respondedAt: new Date() })
-      .where(eq(invitations.id, inv.id));
-    const clearGuests = db.delete(guests).where(eq(guests.invitationId, inv.id));
-
-    if (status === "confirmed") {
-      await db.batch([
-        updateInvitation,
-        clearGuests,
-        db.insert(guests).values(
-          cleanAttendees.map((a) => ({
-            invitationId: inv.id,
-            name: a.name,
-            dietaryRestrictions: a.dietaryRestrictions || null,
-          }))
-        ),
-      ]);
-    } else {
-      await db.batch([updateInvitation, clearGuests]);
+    // Last answer per id wins; ids of other families (or members removed meanwhile) are ignored.
+    const answers = new Map<string, { rsvp: Rsvp; dietary: string | null }>();
+    const list = Array.isArray(payload?.members) ? payload.members.slice(0, 100) : [];
+    for (const answer of list) {
+      if (!answer || typeof answer.id !== "string" || !familyIds.has(answer.id)) continue;
+      if (!isRsvp(answer.rsvp)) return { success: false, error: "Elige una respuesta válida para cada persona." };
+      answers.set(answer.id, { rsvp: answer.rsvp, dietary: cleanText(answer.dietaryRestrictions, LIMITS.dietary) || null });
+    }
+    if (answers.size === 0) {
+      return { success: false, error: "Tu lista de invitados cambió. Recarga la página e inténtalo de nuevo." };
     }
 
-    revalidatePath(`/i/${token}`);
-    revalidatePath("/admin");
-    return { success: true as const, attendees: status === "confirmed" ? cleanAttendees : [] };
+    const songRequest = cleanText(payload?.songRequest, LIMITS.song) || null;
+    const guestMessage = cleanMultiline(payload?.guestMessage, LIMITS.guestMessage) || null;
+    const phone = cleanPhone(payload?.phone);
+
+    const queries: BatchItem<"pg">[] = [...answers].map(([id, a]) =>
+      db
+        .update(guests)
+        .set({ rsvp: a.rsvp, dietaryRestrictions: a.dietary })
+        .where(and(eq(guests.id, id), eq(guests.invitationId, inv.id)))
+    );
+    queries.push(
+      db
+        .update(invitations)
+        .set({
+          songRequest,
+          guestMessage,
+          // An empty field keeps the phone the family already had.
+          ...(phone && { phone }),
+          respondedAt: new Date(),
+        })
+        .where(eq(invitations.id, inv.id)),
+      recalcFamily(inv.id)
+    );
+    await db.batch(queries as [BatchItem<"pg">, ...BatchItem<"pg">[]]);
+
+    return { success: true, saved: { members: await loadPublicMembers(inv.id), songRequest, guestMessage } };
   } catch (error: unknown) {
     console.error("Error al guardar RSVP:", error);
-    const message =
-      error instanceof Error && !/failed query|neon|fetch/i.test(error.message)
-        ? error.message
-        : "Ocurrió un error al guardar tu respuesta. Intenta de nuevo.";
-    return { success: false as const, error: message };
+    return { success: false, error: "No pudimos guardar tu respuesta. Revisa tu conexión e inténtalo de nuevo." };
   }
 }

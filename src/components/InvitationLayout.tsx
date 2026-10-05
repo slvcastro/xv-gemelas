@@ -12,16 +12,19 @@ import { Ornament } from "@/components/decor";
 import type { InvitationMedia } from "@/lib/media";
 
 /**
- * Full invitation, in order: envelope → cover → countdown → message → family → where/when →
- * itinerary → gifts → dress code → gallery → `children` (the RSVP form or the code lookup).
+ * Full invitation, in order: envelope → cover → `welcome` (personal greeting of the family, optional) →
+ * countdown → message → family → where/when → itinerary → gifts → dress code → gallery → `children`
+ * (the RSVP form or, on the general page, how to confirm).
  */
 export function InvitationLayout({
   media,
   guestName,
+  welcome,
   children,
 }: {
   media: InvitationMedia;
   guestName?: string | null;
+  welcome?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -30,6 +33,7 @@ export function InvitationLayout({
 
       <div className="w-full">
         <HeroSection cover={media.cover} />
+        {welcome}
         <CountdownSection />
         <MessageSection />
         <FamilySection />
