@@ -22,20 +22,23 @@ export async function buildGuestWorkbook(siteUrl: string): Promise<XlsxSheet[]> 
     members: memberRows.filter((m) => m.invitationId === f.id),
   }));
   const allMembers = families.flatMap((f) => f.members.map((m) => ({ ...m, rsvp: m.rsvp as Rsvp, family: f })));
-  const c = countMembers(allMembers);
+  // Deactivated (cancelled) invitations stay in "Todos" and "Familias" but don't count as guests.
+  const activeMembers = allMembers.filter((m) => m.family.isActive !== false);
+  const inactiveFamilies = families.filter((f) => f.isActive === false).length;
+  const c = countMembers(activeMembers);
   const checkedIn = allMembers.filter((m) => m.checkedInAt).length;
-  const checkedInYes = allMembers.filter((m) => m.checkedInAt && m.rsvp === "yes").length;
+  const checkedInYes = activeMembers.filter((m) => m.checkedInAt && m.rsvp === "yes").length;
 
   const summary: XlsxSheet = {
     name: "Resumen",
     autoFilter: false,
     columns: [
       { header: "Concepto", width: 34 },
-      { header: "Total", width: 12 },
+      { header: "Total", width: 18 },
       { header: "Detalle", width: 40 },
     ],
     rows: [
-      ["Familias (invitaciones)", families.length, null],
+      ["Familias (invitaciones)", families.length, inactiveFamilies ? `${inactiveFamilies} desactivada(s): no cuentan en los totales` : null],
       ["Invitados en total", c.total, `${c.adults} adultos · ${c.children} niños`],
       ["Adultos", c.adults, null],
       ["Niños", c.children, null],
@@ -68,7 +71,7 @@ export async function buildGuestWorkbook(siteUrl: string): Promise<XlsxSheet[]> 
       { header: "Teléfono", width: 16 },
       { header: "Código", width: 10 },
     ],
-    rows: allMembers
+    rows: activeMembers
       .filter((m) => m.rsvp === "yes")
       .map((m) => [m.family.name, m.name, typeLabel(m.isChild), m.dietaryRestrictions, m.family.phone, m.family.token]),
   };

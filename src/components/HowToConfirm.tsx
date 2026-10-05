@@ -36,12 +36,12 @@ export function HowToConfirm() {
 
           <details className="group mt-8 border-t border-gold/15 pt-5">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center gap-2 font-sans text-xs uppercase tracking-[0.25em] text-blue-mist transition-colors hover:text-gold [&::-webkit-details-marker]:hidden">
-              ¿Tienes tu código?
+              ¿Tienen su código?
               <ChevronDown size={14} className="transition-transform group-open:rotate-180" aria-hidden="true" />
             </summary>
             <div className="pt-4 text-center">
               <p className="mb-5 font-sans text-xs leading-relaxed text-blue-mist">
-                Si no puedes abrir el enlace, escribe el código de 6 letras que viene en tu mensaje.
+                Si no pueden abrir el enlace, escriban el código de 6 caracteres (letras y números) que viene en su mensaje.
               </p>
               <CodeLookup />
             </div>

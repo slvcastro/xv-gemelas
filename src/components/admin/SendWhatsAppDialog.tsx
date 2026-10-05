@@ -5,28 +5,35 @@ import { Check, Copy, MessageCircle } from "lucide-react";
 import { isDesktopBrowser, whatsappUrl } from "@/lib/whatsapp";
 import { Modal, btnSecondary, copyText, inputCls, labelCls } from "./ui";
 
+type Kind = "invitation" | "reminder";
+const KINDS: [Kind, string][] = [
+  ["invitation", "Invitación completa"],
+  ["reminder", "Recordatorio"],
+];
+
 /**
- * Shows the proposed WhatsApp message before sending, so the admin can read and tweak it, then opens
- * WhatsApp with it (app on phones, WhatsApp Web on computers) or copies it to paste by hand.
- * Rendered only after a click, so reading `navigator` while rendering is safe.
+ * Shows the proposed WhatsApp message before sending, so the admin can pick the full invitation or a
+ * reminder, read and tweak it, then open WhatsApp with it (app on phones, WhatsApp Web on computers)
+ * or copy it to paste by hand. Rendered only after a click, so reading `navigator` while rendering is safe.
  */
 export function SendWhatsAppDialog({
-  title,
   familyName,
   phone,
-  initialMessage,
+  messages,
+  initialKind,
   onSent,
   onClose,
 }: {
-  title: string;
   familyName: string;
   phone: string | null;
-  initialMessage: string;
+  messages: Record<Kind, string>;
+  initialKind: Kind;
   /** Called the first time the message is opened in WhatsApp or copied (marks the family as sent). */
   onSent: () => void;
   onClose: () => void;
 }) {
-  const [text, setText] = useState(initialMessage);
+  const [kind, setKind] = useState<Kind>(initialKind);
+  const [text, setText] = useState(messages[initialKind]);
   const [copied, setCopied] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -34,6 +41,11 @@ export function SendWhatsAppDialog({
     if (sent) return;
     setSent(true);
     onSent();
+  };
+
+  const choose = (next: Kind) => {
+    setKind(next);
+    setText(messages[next]);
   };
 
   const handleCopy = async () => {
@@ -45,18 +57,35 @@ export function SendWhatsAppDialog({
   };
 
   return (
-    <Modal title={title} onClose={onClose}>
+    <Modal title={kind === "reminder" ? "Enviar recordatorio" : "Enviar invitación"} onClose={onClose}>
       <p className="font-sans text-sm text-blue-ice/90">
         Para <strong className="font-medium text-gold">{familyName}</strong>
         {phone ? <> · {phone}</> : <span className="text-blue-mist"> · sin teléfono: WhatsApp te pedirá elegir el contacto</span>}
       </p>
+
+      <div className="mt-4 grid grid-cols-2 border border-gold/30" role="radiogroup" aria-label="Tipo de mensaje">
+        {KINDS.map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={kind === value}
+            onClick={() => choose(value)}
+            className={`min-h-10 px-2 font-sans text-xs transition-colors ${
+              kind === value ? "bg-gold font-medium text-navy" : "text-blue-ice/80 hover:text-gold"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <label htmlFor="wa-text" className={`${labelCls} mt-5`}>
         Mensaje (puedes cambiarlo antes de enviar)
       </label>
       <textarea
         id="wa-text"
-        rows={13}
+        rows={12}
         value={text}
         onChange={(e) => setText(e.target.value)}
         className={`${inputCls} leading-relaxed`}

@@ -19,11 +19,33 @@ function getObserver() {
   return observer;
 }
 
+/** Jumps every finite animation inside `el` to its end (infinite ones, like twinkles, keep going). */
+function finishAnimations(el: HTMLElement | null) {
+  if (!el || el.dataset.inview === undefined) return;
+  for (const a of el.getAnimations({ subtree: true })) {
+    if (a.effect?.getComputedTiming().iterations === Infinity) continue;
+    try {
+      a.finish();
+    } catch {
+      /* animation without an end */
+    }
+  }
+}
+
 /**
  * Scope for scroll-triggered CSS animations: everything inside with an `fx-*` animation waits
  * (paused at its first frame) until this block scrolls into view. Children stay server-rendered.
  */
-export function InView({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+export function InView({
+  children,
+  className = "",
+  finishOnTap = false,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  /** A tap inside shows the final state at once (for longer sequences such as the personal welcome). */
+  finishOnTap?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -37,7 +59,7 @@ export function InView({ children, className = "" }: { children: React.ReactNode
     return () => o.unobserve(el);
   }, []);
   return (
-    <div ref={ref} className={`fx-inview ${className}`}>
+    <div ref={ref} className={`fx-inview ${className}`} onPointerDown={finishOnTap ? () => finishAnimations(ref.current) : undefined}>
       {children}
     </div>
   );

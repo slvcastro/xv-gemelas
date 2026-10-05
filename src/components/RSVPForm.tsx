@@ -134,15 +134,22 @@ export const RSVPForm = ({
     }
 
     setIsSubmitting(true);
-    const result = await submitRSVP(token, {
-      members: current.map((m) => ({
+    // Send only what changed against what this page loaded, so a relative answering from another phone
+    // at the same time doesn't get their answers, song or message overwritten.
+    const changed = current
+      .map((m) => ({
         id: m.id,
         rsvp: answers[m.id] as Rsvp,
         // Someone who will not attend has no dietary needs to keep.
         dietaryRestrictions: answers[m.id] === "no" ? "" : (dietary[m.id] ?? ""),
-      })),
-      songRequest: song,
-      guestMessage: message,
+        before: m,
+      }))
+      .filter((a) => a.rsvp !== a.before.rsvp || a.dietaryRestrictions.trim() !== (a.before.dietaryRestrictions ?? ""))
+      .map(({ id, rsvp, dietaryRestrictions }) => ({ id, rsvp, dietaryRestrictions }));
+    const result = await submitRSVP(token, {
+      members: changed,
+      ...(song.trim() !== (saved.songRequest ?? "") && { songRequest: song }),
+      ...(message.trim() !== (saved.guestMessage ?? "") && { guestMessage: message }),
       phone,
     });
     setIsSubmitting(false);
@@ -287,7 +294,7 @@ export const RSVPForm = ({
                     type="button"
                     onClick={() => setOpenDietary((prev) => ({ ...prev, [m.id]: true }))}
                     aria-label={`Agregar alergias o dieta especial de ${m.name}`}
-                    className="mt-2 inline-flex min-h-8 items-center gap-1 font-sans text-xs text-blue-mist underline-offset-4 transition-colors hover:text-gold hover:underline"
+                    className="-mb-1 mt-1 inline-flex min-h-11 items-center gap-1 font-sans text-xs text-blue-mist underline-offset-4 transition-colors hover:text-gold hover:underline"
                   >
                     <Plus size={12} aria-hidden="true" /> Alergias o dieta especial
                   </button>
@@ -500,7 +507,7 @@ function ThankYouCard({
 
         {(yes.length > 0 || pending.length > 0) && (
           <div className="mt-8 w-full border border-gold/25 px-4 py-4">
-            <p className="eyebrow text-gold">Recordatorio · Vestimenta</p>
+            <p className="eyebrow text-gold">Vestimenta</p>
             <p className="mt-2 text-pretty font-sans text-sm leading-relaxed text-blue-ice/80">
               Ropa de gala para damas y caballeros. Por favor{" "}
               <strong className="font-medium text-gold">{single ? "no portes" : "no porten"} ninguna gama de azul</strong>: es el color

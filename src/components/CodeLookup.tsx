@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { OpeningVeil } from "@/components/OpeningVeil";
 
@@ -10,6 +11,15 @@ export function CodeLookup({ autoFocus = false }: { autoFocus?: boolean }) {
   const [opening, setOpening] = useState(false);
   const router = useRouter();
   const clean = code.replace(/[^a-z0-9]/gi, "").toUpperCase();
+
+  // While the veil is up the page behind must not scroll.
+  useEffect(() => {
+    if (!opening) return;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [opening]);
 
   return (
     <form
@@ -24,7 +34,7 @@ export function CodeLookup({ autoFocus = false }: { autoFocus?: boolean }) {
       className="flex flex-col gap-4"
     >
       <label htmlFor="invite-code" className="eyebrow text-blue-mist">
-        Tu código personal
+        Su código personal
       </label>
       <input
         id="invite-code"
@@ -47,8 +57,10 @@ export function CodeLookup({ autoFocus = false }: { autoFocus?: boolean }) {
       >
         {opening ? "Abriendo…" : "Abrir mi invitación"}
       </button>
-      {/* The page "comes alive" while the personal invitation loads; it stays until the new page replaces this one. */}
-      {opening && <OpeningVeil fixed label="Abriendo su invitación…" />}
+      {/* The page "comes alive" while the personal invitation loads; it stays until the new page replaces
+          this one. Portaled to <body>: inside .card-gold (backdrop-filter) a fixed element would only
+          cover the card. */}
+      {opening && createPortal(<OpeningVeil fixed label="Abriendo su invitación…" />, document.body)}
     </form>
   );
 }

@@ -74,6 +74,7 @@ export const SplashScreen = ({
   const rootRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const cardNameRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const locked = phase !== "done";
 
   useEffect(() => {
@@ -103,21 +104,36 @@ export const SplashScreen = ({
     return () => clearTimeout(id);
   }, [phase]);
 
+  /** Set when a tap arrives while the intro is still playing: that tap only completes it. */
+  const tapFinishedIntro = useRef(false);
+
   const finishIntro = () => {
     const root = rootRef.current;
     if (phase !== "sealed" || !root) return;
+    // Once the button can be seen, a tap on it opens the envelope right away.
+    const button = buttonRef.current;
+    const buttonShown = !button || Number(getComputedStyle(button).opacity) > 0.5;
+    let wasPlaying = false;
     for (const a of introAnimations(root)) {
       if (a.effect?.getComputedTiming().iterations === Infinity) continue;
+      if (a.playState === "running") wasPlaying = true;
       try {
         a.finish();
       } catch {
         /* animation without an end */
       }
     }
+    tapFinishedIntro.current = wasPlaying && !buttonShown;
   };
 
   const open = () => {
     if (phase !== "sealed") return;
+    // A tap on the (still invisible) button while the pen is writing shows everything first, so the
+    // guest always gets to see their name on the envelope; the next tap opens it.
+    if (tapFinishedIntro.current) {
+      tapFinishedIntro.current = false;
+      return;
+    }
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setPhase("done");
       return;
@@ -155,9 +171,10 @@ export const SplashScreen = ({
         <DecoFrame className="inset-3 opacity-70 md:inset-6" corner={44} cornerMd={88} animated />
       </div>
 
-      <div className="relative z-10 flex min-h-full w-full flex-col items-center px-6 py-12 text-center md:py-14 short:py-8">
-        {/* Free space split 1:2 (1:1 on desktop): the block sits a bit above centre. */}
-        <span className="block grow" aria-hidden="true" />
+      <div className="relative z-10 flex min-h-full w-full flex-col items-center px-6 py-12 text-center md:py-14 short:flex-row short:flex-wrap short:content-center short:justify-center short:gap-x-10 short:py-5">
+        {/* Free space split 1:2 (1:1 on desktop): the block sits a bit above centre. Landscape phones
+            (short) put the title and the envelope side by side so the button stays on screen. */}
+        <span className="block grow short:hidden" aria-hidden="true" />
 
         <div className="splash-out flex flex-col items-center">
           <span className="eyebrow fx-in text-blue-mist" style={fxDelay(0.1)}>
@@ -179,7 +196,7 @@ export const SplashScreen = ({
         </div>
 
         {/* Sobre (vista del reverso): interior, tarjeta, bolsillo, solapa y sello, de atrás hacia adelante. */}
-        <div className="env relative isolate mt-8 aspect-[290/213] w-[min(calc(100vw-4.5rem),20.5rem)] md:mt-9 md:w-[24rem] short:mt-5 short:w-[15rem]">
+        <div className="env relative isolate mt-8 aspect-[290/213] w-[min(calc(100vw-4.5rem),20.5rem)] md:mt-9 md:w-[24rem] short:mt-0 short:w-[15rem]">
           <span className="env-shadow pointer-events-none absolute inset-x-[-6%] bottom-[-14%] h-[30%]" aria-hidden="true" />
           <div className="env-body absolute inset-0">
             <div className="env-part absolute inset-0 border border-gold/25 bg-navy-deep" aria-hidden="true">
@@ -223,13 +240,24 @@ export const SplashScreen = ({
               </svg>
             </div>
 
-            <div className="env-addr splash-out absolute inset-x-[7%] bottom-[5%] top-[64%] z-[3] flex flex-col items-center justify-center">
+            <div className="env-addr splash-out absolute inset-x-[6%] bottom-[5%] top-[64%] z-[3] flex flex-col items-center justify-end">
               {guestName ? (
                 <>
-                  <span className="eyebrow fx-in text-[10px] text-blue-mist md:text-[11px]" style={fxDelay(1.45)}>
+                  <span
+                    className="fx-in whitespace-nowrap font-sans text-[9px] uppercase leading-relaxed tracking-[0.2em] text-blue-mist min-[360px]:text-[10px] min-[360px]:tracking-[0.28em] md:text-[11px] md:tracking-[0.34em]"
+                    style={fxDelay(1.45)}
+                  >
                     Invitación especial para
                   </span>
-                  <p className="mt-0.5 text-balance font-script text-[clamp(1.45rem,7.2vw,1.8rem)] leading-[1.15] text-[#ecd99a] md:text-[2.1rem] short:text-[1.35rem]">
+                  <p
+                    className={`mt-0.5 text-balance font-script leading-[1.1] text-[#ecd99a] ${
+                      guestName.length > 30
+                        ? "text-[clamp(0.95rem,4.6vw,1.2rem)] md:text-[1.45rem] short:text-[1rem]"
+                        : guestName.length > 18
+                          ? "text-[clamp(1.1rem,5.6vw,1.45rem)] md:text-[1.75rem] short:text-[1.15rem]"
+                          : "text-[clamp(1.45rem,7.2vw,1.8rem)] md:text-[2.1rem] short:text-[1.35rem]"
+                    }`}
+                  >
                     <InkWords text={guestName} start={1.6} />
                   </p>
                 </>
@@ -267,16 +295,19 @@ export const SplashScreen = ({
           </div>
         </div>
 
-        {!guestName && date(2, "mt-7")}
+        {!guestName && date(2, "mt-7 justify-center short:mt-3 short:basis-full")}
 
-        <button
-          onClick={open}
-          className="splash-out fx-in mt-9 min-h-11 border border-gold/70 px-10 py-3 font-sans text-[11px] uppercase tracking-[0.3em] text-gold outline outline-1 outline-offset-4 outline-gold/25 transition-colors duration-500 hover:bg-gold hover:text-navy md:mt-10 md:text-xs short:mt-6"
-          style={fxDelay(2.2)}
-        >
-          Abrir invitación
-        </button>
-        <span className="block grow-[2] md:grow" aria-hidden="true" />
+        <div className="flex justify-center short:basis-full">
+          <button
+            ref={buttonRef}
+            onClick={open}
+            className="splash-out fx-in mt-9 min-h-11 border border-gold/70 px-10 py-3 font-sans text-[11px] uppercase tracking-[0.3em] text-gold outline outline-1 outline-offset-4 outline-gold/25 transition-colors duration-500 hover:bg-gold hover:text-navy md:mt-10 md:text-xs short:mt-4"
+            style={fxDelay(2.2)}
+          >
+            Abrir invitación
+          </button>
+        </div>
+        <span className="block grow-[2] md:grow short:hidden" aria-hidden="true" />
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ export default function NotFound() {
         </p>
         <Link
           href="/"
-          className="relative mt-6 font-sans text-xs uppercase tracking-[0.25em] text-blue-mist underline-offset-4 hover:text-gold hover:underline"
+          className="relative mt-4 inline-flex min-h-11 items-center font-sans text-xs uppercase tracking-[0.25em] text-blue-mist underline-offset-4 hover:text-gold hover:underline"
         >
           Ver la invitación general
         </Link>

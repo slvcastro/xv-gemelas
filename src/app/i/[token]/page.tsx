@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { after } from "next/server";
 import { checkAdmin } from "@/app/actions/adminAuth";
 import { InvitationLayout } from "@/components/InvitationLayout";
 import { PersonalWelcome } from "@/components/PersonalWelcome";
 import { RSVPForm } from "@/components/RSVPForm";
 import { SectionTitle } from "@/components/decor";
-import { getPublicFamily, markInvitationOpened } from "@/lib/invitations";
+import { OpenTracker } from "@/components/OpenTracker";
+import { OpeningVeil } from "@/components/OpeningVeil";
+import { getPublicFamily, loadPublicFamily } from "@/lib/invitations";
 import { getInvitationMedia } from "@/lib/media";
 import { SITE_DESCRIPTION, openGraph } from "@/lib/metadata";
 import { checkInPath, getSiteUrl } from "@/lib/site";
@@ -23,15 +24,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 /** Personal invitation of one family: welcome with their names, the whole invitation and the RSVP per member. */
 export default async function InvitationPage({ params }: Props) {
   const { token } = await params;
-  const family = await getPublicFamily(token);
+  const { family, failed } = await loadPublicFamily(token);
+  if (failed) return <InvitationUnavailable token={token} />;
   if (!family) notFound();
 
   const [media, siteUrl, isAdmin] = await Promise.all([getInvitationMedia(), getSiteUrl(), checkAdmin()]);
 
-  // Record the first visit after the response is sent (admins previewing a link don't count).
-  if (!isAdmin && !family.opened) {
-    after(() => markInvitationOpened(family.id));
-  }
 
   const single = family.members.length === 1;
 
@@ -49,6 +47,8 @@ export default async function InvitationPage({ params }: Props) {
         />
       }
     >
+      {/* First visit is recorded from the browser, so link previews don't count (admins previewing neither). */}
+      {!isAdmin && !family.opened && <OpenTracker token={family.token} />}
       <section id="confirmar" className="relative w-full scroll-mt-4 overflow-hidden bg-blue-dark/40 px-4 py-24 sm:px-6">
         <div className="absolute inset-0 gold-dust opacity-30" aria-hidden="true" />
         <div className="relative mx-auto flex max-w-xl flex-col items-center">
@@ -69,5 +69,25 @@ export default async function InvitationPage({ params }: Props) {
         </div>
       </section>
     </InvitationLayout>
+  );
+}
+
+/** The database did not answer (e.g. waking up): ask to retry instead of calling the link invalid. */
+function InvitationUnavailable({ token }: { token: string }) {
+  return (
+    <main className="relative">
+      <OpeningVeil label="Estamos abriendo su invitación" />
+      <div className="absolute inset-x-0 bottom-[12%] flex flex-col items-center gap-4 px-6 text-center">
+        <p className="max-w-xs text-pretty font-sans text-sm text-blue-ice/80">
+          No pudimos cargarla en este momento. Por favor intenta de nuevo en unos segundos.
+        </p>
+        <a
+          href={`/i/${encodeURIComponent(token)}`}
+          className="inline-flex min-h-11 items-center bg-foil px-8 py-3 font-sans text-[11px] font-medium uppercase tracking-[0.3em] text-navy"
+        >
+          Intentar de nuevo
+        </a>
+      </div>
+    </main>
   );
 }

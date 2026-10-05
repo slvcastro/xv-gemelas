@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { db } from "@/db";
 import { guests, invitations } from "@/db/schema";
@@ -53,12 +53,16 @@ export async function submitRSVP(rawToken: string, payload: RSVPPayload): Promis
       if (!isRsvp(answer.rsvp)) return { success: false, error: "Elige una respuesta válida para cada persona." };
       answers.set(answer.id, { rsvp: answer.rsvp, dietary: cleanText(answer.dietaryRestrictions, LIMITS.dietary) || null });
     }
-    if (answers.size === 0) {
+    // The form sends only the answers this person changed (so two relatives answering from different
+    // phones don't overwrite each other); answers that all point to removed members mean a stale page.
+    if (list.length > 0 && answers.size === 0) {
       return { success: false, error: "Tu lista de invitados cambió. Recarga la página e inténtalo de nuevo." };
     }
 
-    const songRequest = cleanText(payload?.songRequest, LIMITS.song) || null;
-    const guestMessage = cleanMultiline(payload?.guestMessage, LIMITS.guestMessage) || null;
+    // undefined = not changed in this form: keep what is stored.
+    const songRequest = payload?.songRequest === undefined ? undefined : cleanText(payload.songRequest, LIMITS.song) || null;
+    const guestMessage =
+      payload?.guestMessage === undefined ? undefined : cleanMultiline(payload.guestMessage, LIMITS.guestMessage) || null;
     const phone = cleanPhone(payload?.phone);
 
     const queries: BatchItem<"pg">[] = [...answers].map(([id, a]) =>
@@ -71,8 +75,8 @@ export async function submitRSVP(rawToken: string, payload: RSVPPayload): Promis
       db
         .update(invitations)
         .set({
-          songRequest,
-          guestMessage,
+          ...(songRequest !== undefined && { songRequest }),
+          ...(guestMessage !== undefined && { guestMessage }),
           // An empty field keeps the phone the family already had.
           ...(phone && { phone }),
           respondedAt: new Date(),
@@ -82,9 +86,34 @@ export async function submitRSVP(rawToken: string, payload: RSVPPayload): Promis
     );
     await db.batch(queries as [BatchItem<"pg">, ...BatchItem<"pg">[]]);
 
-    return { success: true, saved: { members: await loadPublicMembers(inv.id), songRequest, guestMessage } };
+    const [stored] = await db
+      .select({ songRequest: invitations.songRequest, guestMessage: invitations.guestMessage })
+      .from(invitations)
+      .where(eq(invitations.id, inv.id));
+    return {
+      success: true,
+      saved: { members: await loadPublicMembers(inv.id), songRequest: stored?.songRequest ?? null, guestMessage: stored?.guestMessage ?? null },
+    };
   } catch (error: unknown) {
     console.error("Error al guardar RSVP:", error);
     return { success: false, error: "No pudimos guardar tu respuesta. Revisa tu conexión e inténtalo de nuevo." };
+  }
+}
+
+/**
+ * Records the first time a person opens their invitation. Called from the browser (OpenTracker), not
+ * while rendering the page: WhatsApp and other apps fetch the link to build its preview as soon as it
+ * is pasted, and those requests don't run JavaScript, so they no longer count as "Abrió".
+ */
+export async function markOpened(rawToken: string) {
+  try {
+    const token = normalizeToken(String(rawToken ?? ""));
+    if (!token) return;
+    await db
+      .update(invitations)
+      .set({ openedAt: new Date() })
+      .where(and(eq(invitations.token, token), isNull(invitations.openedAt), eq(invitations.isActive, true)));
+  } catch (error) {
+    console.error("Error al marcar la invitación como abierta:", error);
   }
 }

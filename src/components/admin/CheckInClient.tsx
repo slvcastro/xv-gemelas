@@ -49,7 +49,7 @@ export function CheckInClient({ token, family: initialFamily, loadError }: { tok
           <ScanLine size={72} strokeWidth={1.3} className="text-gold" aria-hidden="true" />
           <h1 className="mt-6 font-serif text-3xl text-gold">Registro de entrada</h1>
           <p className="mt-4 max-w-sm font-sans text-base text-blue-ice/85">
-            Escanea el QR del pase con la cámara del celular, o escribe el código de 6 letras que aparece debajo del QR.
+            Escanea el QR del pase con la cámara del celular, o escribe el código de 6 caracteres que aparece debajo del QR.
           </p>
           <ManualCode />
           <Footer />

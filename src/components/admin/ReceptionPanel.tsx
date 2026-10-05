@@ -21,7 +21,8 @@ export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; 
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const all = families.flatMap((f) => f.members);
-  const confirmed = all.filter((m) => m.rsvp === "yes");
+  // Deactivated (cancelled) invitations are not expected at the door.
+  const confirmed = families.filter((f) => f.isActive).flatMap((f) => f.members).filter((m) => m.rsvp === "yes");
   const arrivedConfirmed = confirmed.filter((m) => m.checkedInAt).length;
   const arrivedTotal = all.filter((m) => m.checkedInAt).length;
   const extra = arrivedTotal - arrivedConfirmed;
@@ -74,7 +75,7 @@ export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; 
         <h1 className="font-serif text-3xl text-gold">Recepción</h1>
         <p className="mt-1 max-w-2xl font-sans text-sm text-blue-mist">
           El día del evento, escanea el QR del pase con la cámara del celular: se abrirá la pantalla de entrada. Si el QR no se puede leer,
-          escribe el código de 6 letras o busca a la familia aquí abajo.
+          escribe el código de 6 caracteres o busca a la familia aquí abajo.
         </p>
       </div>
 

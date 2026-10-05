@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { FileSpreadsheet, Plus, Search, Upload } from "lucide-react";
-import { deleteFamily } from "@/app/actions/adminGuests";
+import { deleteFamily, markFamilySent } from "@/app/actions/adminGuests";
 import { countMembers, normalizeText, plural } from "@/lib/families";
 import { DeadlineControl } from "./DeadlineControl";
-import { FamilyCard } from "./FamilyCard";
+import { FamilyCard, familyMessages, isReminderFor } from "./FamilyCard";
 import { FamilyForm } from "./FamilyForm";
 import { HowItWorksSteps } from "./HowItWorks";
 import { ImportFamilies } from "./ImportFamilies";
+import { SendWhatsAppDialog } from "./SendWhatsAppDialog";
 import { ConfirmDialog, Modal, btnPrimary, btnSecondary, inputCls } from "./ui";
 import type { AdminFamily } from "./types";
 
@@ -42,13 +43,18 @@ export function FamiliesPanel({
   const [importing, setImporting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<AdminFamily | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const linkFor = (f: AdminFamily) => `${siteUrl}/i/${f.token}`;
   const editing = editingId ? families.find((f) => f.id === editingId) : undefined;
+  // Looked up in all families (not only the visible ones): the dialog stays open even if marking the
+  // family as sent takes it out of the "Sin enviar" filter.
+  const sending = sendingId ? families.find((f) => f.id === sendingId) : undefined;
 
   const stats = useMemo(() => {
-    const c = countMembers(families.flatMap((f) => f.members));
+    // Deactivated invitations (cancelled) don't count as guests: their link no longer opens.
+    const c = countMembers(families.filter((f) => f.isActive).flatMap((f) => f.members));
     return {
       ...c,
       families: families.length,
@@ -196,10 +202,10 @@ export function FamiliesPanel({
                   key={f.id}
                   family={f}
                   link={linkFor(f)}
-                  deadline={deadline}
                   notify={notify}
                   onEdit={() => setEditingId(f.id)}
                   onDelete={() => setDeleting(f)}
+                  onSend={() => setSendingId(f.id)}
                 />
               ))}
             </ul>
@@ -243,6 +249,22 @@ export function FamiliesPanel({
             }}
           />
         </Modal>
+      )}
+
+      {sending && (
+        <SendWhatsAppDialog
+          key={sending.id}
+          familyName={sending.name}
+          phone={sending.phone}
+          messages={familyMessages(sending, linkFor(sending), deadline)}
+          initialKind={isReminderFor(sending) ? "reminder" : "invitation"}
+          onSent={() =>
+            markFamilySent(sending.id).then((r) => {
+              if (!r.success) notify(r.error);
+            })
+          }
+          onClose={() => setSendingId(null)}
+        />
       )}
 
       {deleting && (

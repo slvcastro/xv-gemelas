@@ -197,7 +197,7 @@
   background: transparent;
   border: 0;
   border-bottom: 1px solid rgba(216, 196, 119, 0.35);
-  padding: 0.6rem 0;
+  padding: 0.75rem 0;
   color: var(--color-blue-ice);
   outline: none;
   border-radius: 0;
@@ -217,14 +217,15 @@
 
    Disparadores: las animaciones arrancan al montarse, salvo dentro de
    - .fx-inview (InView): en pausa en su primer cuadro hasta que el bloque entra en pantalla;
-   - .fx-await-open (la tarjeta dentro del sobre) y .fx-open (la portada): en pausa hasta abrir el sobre.
+   - .fx-await-open (la tarjeta dentro del sobre) y .fx-open (la portada): en pausa hasta abrir el sobre
+     (la portada es hermana del sobre en InvitationLayout: combinador ~, sin :has, que recalcula toda la página).
    Así los retrasos (--d) cuentan desde el disparo. */
 .fx-inview:not([data-inview]),
 .fx-inview:not([data-inview]) *,
 [data-splash="sealed"] .fx-await-open,
 [data-splash="sealed"] .fx-await-open *,
-html:has([data-splash="sealed"]) .fx-open,
-html:has([data-splash="sealed"]) .fx-open * {
+[data-splash="sealed"] ~ div .fx-open,
+[data-splash="sealed"] ~ div .fx-open * {
   animation-play-state: paused !important;
 }
 
@@ -434,6 +435,10 @@ html:has([data-splash="sealed"]) .fx-open * {
   }
   [data-splash="opening"] .seal-crack {
     animation: fx-draw 0.12s linear 0.17s both;
+  }
+  /* The crack and the glint go away with the two halves (not left floating over the cover photo). */
+  [data-splash="opening"] .seal-fx {
+    animation: fx-out-plain 0.2s ease-in 0.55s both;
   }
   [data-splash="opening"] .seal-half-l {
     animation: half-l 0.45s cubic-bezier(0.5, 0, 0.75, 0.4) 0.27s both;

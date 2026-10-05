@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Plus, Sparkles, X } from "lucide-react";
+import { Check, Plus, Sparkles, X } from "lucide-react";
 import { createFamily, updateFamily } from "@/app/actions/adminGuests";
 import { LIMITS, RSVP_LABELS, plural, type Rsvp } from "@/lib/families";
 import { GREETING_SUGGESTIONS, findSuggestion, suggestionText } from "@/lib/greetings";
@@ -40,8 +40,8 @@ export function FamilyForm({
       : [newRow()]
   );
   const [phone, setPhone] = useState(family?.phone ?? "");
-  // New families start with a proposed message; editing keeps what was saved (empty stays empty).
-  const [greeting, setGreeting] = useState(family ? (family.greeting ?? "") : GREETING_SUGGESTIONS[0].plural);
+  // Families without a saved message (new or imported) show the suggestion they actually receive.
+  const [greeting, setGreeting] = useState(family?.greeting ?? GREETING_SUGGESTIONS[0].plural);
   const [notes, setNotes] = useState(family?.notes ?? "");
   const [isActive, setIsActive] = useState(family?.isActive ?? true);
   const [confirmRemove, setConfirmRemove] = useState<number | null>(null);
@@ -104,7 +104,8 @@ export function FamilyForm({
       // Only answers the admin actually changed are sent, so a stale form never overwrites what the
       // family answered while it was open.
       members: named.map((r) => ({ id: r.id, name: r.name, isChild: r.isChild, ...(editing && r.rsvp !== r.savedRsvp && { rsvp: r.rsvp }) })),
-      phone,
+      // Only when changed here (see updateFamily): the family may have updated it from their invitation.
+      ...((!editing || phone !== (family?.phone ?? "")) && { phone }),
       greeting: shownGreeting,
       notes,
       ...(editing && { isActive }),
@@ -193,7 +194,7 @@ export function FamilyForm({
               </div>
 
               <div className="mt-2 flex flex-wrap items-center gap-2 pl-7">
-                <div className="inline-flex border border-gold/25" role="group" aria-label={`Tipo de ${row.name.trim() || `integrante ${index + 1}`}`}>
+                <div className="inline-flex border border-gold/40" role="group" aria-label={`Tipo de ${row.name.trim() || `integrante ${index + 1}`}`}>
                   {(
                     [
                       [false, "Adulto"],
@@ -205,10 +206,11 @@ export function FamilyForm({
                       type="button"
                       aria-pressed={row.isChild === child}
                       onClick={() => update(row.key, { isChild: child })}
-                      className={`min-h-9 px-3 font-sans text-xs transition-colors ${
-                        row.isChild === child ? "bg-gold/20 text-gold" : "text-blue-mist hover:text-blue-ice"
+                      className={`inline-flex min-h-9 items-center gap-1 px-3 font-sans text-xs transition-colors ${
+                        row.isChild === child ? "bg-gold font-medium text-navy" : "text-blue-mist/70 hover:text-blue-ice"
                       }`}
                     >
+                      {row.isChild === child && <Check size={13} aria-hidden="true" />}
                       {label}
                     </button>
                   ))}

@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { and, asc, eq, isNull, sql, type SQL } from "drizzle-orm";
+import { asc, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { guests, invitations, settings } from "@/db/schema";
 import type { Rsvp } from "@/lib/families";
@@ -129,27 +129,21 @@ export async function findPublicFamily(rawToken: string): Promise<PublicFamily |
   };
 }
 
-/** Like findPublicFamily but never throws (null on database errors); cached per request. */
-export const getPublicFamily = cache(async (rawToken: string) => {
+/**
+ * findPublicFamily cached per request, telling apart "this code does not exist" (family: null) from
+ * "the database did not answer" (failed: true), so a hiccup never reads as an invalid invitation.
+ */
+export const loadPublicFamily = cache(async (rawToken: string): Promise<{ family: PublicFamily | null; failed: boolean }> => {
   try {
-    return await findPublicFamily(rawToken);
+    return { family: await findPublicFamily(rawToken), failed: false };
   } catch (error) {
     console.error("Error al cargar la invitación:", error);
-    return null;
+    return { family: null, failed: true };
   }
 });
 
-/** Records the first time a guest opens their personal link (shown in the admin panel). */
-export async function markInvitationOpened(id: string) {
-  try {
-    await db
-      .update(invitations)
-      .set({ openedAt: new Date() })
-      .where(and(eq(invitations.id, id), isNull(invitations.openedAt)));
-  } catch (error) {
-    console.error("Error al marcar la invitación como abierta:", error);
-  }
-}
+/** Like findPublicFamily but never throws (null on database errors); cached per request. */
+export const getPublicFamily = async (rawToken: string) => (await loadPublicFamily(rawToken)).family;
 
 export type CheckInMember = {
   id: string;

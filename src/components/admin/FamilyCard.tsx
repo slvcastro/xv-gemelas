@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import { Bell, Check, Copy, DoorOpen, ExternalLink, Eye, EyeOff, MessageCircle, Music, Pencil, Send, Trash2 } from "lucide-react";
-import { markFamilySent, setMemberRsvp } from "@/app/actions/adminGuests";
+import { setMemberRsvp } from "@/app/actions/adminGuests";
 import { RSVP_LABELS, countMembers, type Counts, type Rsvp } from "@/lib/families";
 import { invitationMessage, reminderMessage } from "@/lib/whatsapp";
-import { SendWhatsAppDialog } from "./SendWhatsAppDialog";
 import { ChildTag, RSVP_TONE, RsvpIcon, StatusBadge, btnSmall, copyText } from "./ui";
 import type { AdminFamily } from "./types";
 
@@ -19,34 +18,44 @@ export function familySummary(c: Counts) {
   return parts.join(" · ");
 }
 
+/**
+ * After the invitation was sent, a family that still has someone "por definir" gets a reminder by
+ * default (the dialog can switch back to the full invitation at any time).
+ */
+export const isReminderFor = (family: AdminFamily) => !!family.sentAt && family.members.some((m) => m.rsvp === "pending");
+
+/** Both WhatsApp texts for a family: the full invitation and the reminder. */
+export function familyMessages(family: AdminFamily, link: string, deadline: string | null) {
+  const memberNames = family.members.map((m) => m.name);
+  const pendingNames = family.members.filter((m) => m.rsvp === "pending").map((m) => m.name);
+  return {
+    invitation: invitationMessage({ familyName: family.name, greeting: family.greeting, memberNames, url: link, deadline }),
+    reminder: reminderMessage({ familyName: family.name, memberNames, pendingNames, url: link, deadline }),
+  };
+}
+
 export function FamilyCard({
   family,
   link,
-  deadline,
   notify,
   onEdit,
   onDelete,
+  onSend,
 }: {
   family: AdminFamily;
   link: string;
-  deadline: string | null;
   notify: (message: string) => void;
   onEdit: () => void;
   onDelete: () => void;
+  /** Opens the WhatsApp dialog (rendered by the panel, so it survives the card leaving a filter). */
+  onSend: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [changing, setChanging] = useState<string | null>(null);
   const [savingMember, setSavingMember] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
 
   const c = countMembers(family.members);
-  const memberNames = family.members.map((m) => m.name);
-  const pendingNames = family.members.filter((m) => m.rsvp === "pending").map((m) => m.name);
-  // Once they opened the link and someone is still "por definir", a gentle reminder fits better.
-  const isReminder = !!family.openedAt && c.pending > 0;
-  const message = isReminder
-    ? reminderMessage({ familyName: family.name, memberNames, pendingNames, url: link, deadline })
-    : invitationMessage({ familyName: family.name, greeting: family.greeting, memberNames, url: link, deadline });
+  const isReminder = isReminderFor(family);
 
   const handleCopy = async () => {
     if (await copyText(link)) {
@@ -55,13 +64,6 @@ export function FamilyCard({
     } else {
       notify("No se pudo copiar; mantén presionado el enlace para copiarlo.");
     }
-  };
-
-  const handleSent = () => {
-    // WhatsApp opens in a new tab (or the message was copied); record the date for the "Sin enviar" filter.
-    markFamilySent(family.id).then((r) => {
-      if (!r.success) notify(r.error);
-    });
   };
 
   const changeRsvp = async (memberId: string, rsvp: Rsvp) => {
@@ -164,8 +166,10 @@ export function FamilyCard({
       <div className="mt-4 flex flex-wrap gap-2 pt-1">
         <button
           type="button"
-          onClick={() => setSending(true)}
-          className="inline-flex min-h-10 items-center gap-1.5 bg-emerald-600 px-3 py-2 font-sans text-xs font-medium text-white transition-colors hover:bg-emerald-500"
+          onClick={onSend}
+          disabled={!family.isActive}
+          title={family.isActive ? undefined : "Activa el enlace (en Editar) para poder enviarla"}
+          className="inline-flex min-h-10 items-center gap-1.5 bg-emerald-600 px-3 py-2 font-sans text-xs font-medium text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-900/50 disabled:text-white/50"
         >
           {isReminder ? <Bell size={14} aria-hidden="true" /> : <MessageCircle size={14} aria-hidden="true" />}
           {isReminder ? "Recordatorio" : "WhatsApp"}
@@ -190,16 +194,6 @@ export function FamilyCard({
         </button>
       </div>
 
-      {sending && (
-        <SendWhatsAppDialog
-          title={isReminder ? "Enviar recordatorio" : "Enviar invitación"}
-          familyName={family.name}
-          phone={family.phone}
-          initialMessage={message}
-          onSent={handleSent}
-          onClose={() => setSending(false)}
-        />
-      )}
     </li>
   );
 }

@@ -163,7 +163,9 @@ export async function updateFamily(id: string, data: FamilyInput): Promise<Actio
         .update(invitations)
         .set({
           name: v.name,
-          phone: v.phone,
+          // The form sends the phone only when the admin changed it, so an edit form left open does not
+          // undo a number the family updated from their invitation meanwhile.
+          ...(data.phone !== undefined && { phone: v.phone }),
           greeting: v.greeting,
           notes: v.notes,
           ...(data.isActive !== undefined && { isActive: data.isActive === true }),
@@ -189,14 +191,18 @@ export async function setMemberRsvp(guestId: string, rsvp: Rsvp): Promise<Action
     const [member] = await db.select({ invitationId: guests.invitationId }).from(guests).where(eq(guests.id, guestId));
     if (!member?.invitationId) return { success: false, error: "Esta persona ya no está en la lista. Recarga la página." };
 
-    await db.batch([
-      db.update(guests).set({ rsvp }).where(eq(guests.id, guestId)),
-      db
-        .update(invitations)
-        .set({ respondedAt: sql`COALESCE(${invitations.respondedAt}, now())` })
-        .where(eq(invitations.id, member.invitationId)),
-      recalcFamily(member.invitationId),
-    ]);
+    const queries: Batch = [db.update(guests).set({ rsvp }).where(eq(guests.id, guestId))];
+    // Only a real answer counts as "responded"; setting someone back to "Por definir" doesn't.
+    if (rsvp !== "pending") {
+      queries.push(
+        db
+          .update(invitations)
+          .set({ respondedAt: sql`COALESCE(${invitations.respondedAt}, now())` })
+          .where(eq(invitations.id, member.invitationId))
+      );
+    }
+    queries.push(recalcFamily(member.invitationId));
+    await db.batch(queries);
     revalidatePath("/admin");
     return { success: true };
   } catch (error) {
