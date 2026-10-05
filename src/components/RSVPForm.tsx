@@ -500,10 +500,11 @@ function ThankYouCard({
 
         {(yes.length > 0 || pending.length > 0) && (
           <div className="mt-8 w-full border border-gold/25 px-4 py-4">
-            <p className="eyebrow text-gold">Recordatorio · Gala</p>
+            <p className="eyebrow text-gold">Recordatorio · Vestimenta</p>
             <p className="mt-2 text-pretty font-sans text-sm leading-relaxed text-blue-ice/80">
-              Por favor <strong className="font-medium text-gold">{single ? "no uses" : "no usen"} ninguna tonalidad de azul</strong>: es
-              el color reservado para las quinceañeras.
+              Ropa de gala para damas y caballeros. Por favor{" "}
+              <strong className="font-medium text-gold">{single ? "no portes" : "no porten"} ninguna gama de azul</strong>: es el color
+              reservado para las quinceañeras.
             </p>
           </div>
         )}

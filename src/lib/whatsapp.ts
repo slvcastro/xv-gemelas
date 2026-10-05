@@ -1,6 +1,7 @@
 import { CEREMONY, DRESS_CODE_NOTE, EVENT_DATE_LABEL, RECEPTION } from "@/lib/event";
 import { joinNames } from "@/lib/families";
 import { formatLongDate } from "@/lib/format";
+import { defaultGreeting } from "@/lib/greetings";
 
 /** Digits for wa.me: Mexican 10-digit numbers get the 52 country code; other formats are kept. */
 export function whatsappNumber(phone: string | null | undefined) {
@@ -11,10 +12,28 @@ export function whatsappNumber(phone: string | null | undefined) {
   return digits;
 }
 
-/** Without a phone, wa.me opens WhatsApp letting the sender pick the contact. */
-export function whatsappUrl(phone: string | null | undefined, text: string) {
-  return `https://wa.me/${whatsappNumber(phone)}?text=${encodeURIComponent(text)}`;
+/**
+ * Link that opens a WhatsApp chat with the message already written.
+ * - api.whatsapp.com/send instead of wa.me: wa.me answers with a redirect that re-encodes the text, and
+ *   some clients then show accented letters or emoji broken (á → Ã¡, ✨ → �). The messages carry no
+ *   emoji for the same reason.
+ * - On a computer, web.whatsapp.com/send opens the chat directly in WhatsApp Web, skipping the desktop
+ *   app's deep link. The panel also offers "Copiar mensaje" as a fallback that always works.
+ * Without a phone, WhatsApp lets the sender pick the contact.
+ */
+export function whatsappUrl(phone: string | null | undefined, text: string, { desktop = false } = {}) {
+  const params = new URLSearchParams();
+  const number = whatsappNumber(phone);
+  if (number) params.set("phone", number);
+  params.set("text", text);
+  // URLSearchParams writes spaces as "+", which WhatsApp shows literally on some clients: use %20.
+  const query = params.toString().replace(/\+/g, "%20");
+  return `https://${desktop ? "web" : "api"}.whatsapp.com/send?${query}`;
 }
+
+/** Phones and tablets open the WhatsApp app; computers open WhatsApp Web. Call only in the browser. */
+export const isDesktopBrowser = () =>
+  typeof navigator !== "undefined" && !/Android|iPhone|iPad|iPod|Mobile|Silk|Kindle/i.test(navigator.userAgent);
 
 type MessageData = {
   familyName: string;
@@ -33,8 +52,9 @@ export function invitationMessage({ familyName, greeting, memberNames, url, dead
     : "Hemos reservado un lugar especialmente para ti.";
 
   return [
-    `¡Hola, ${familyName}! ✨`,
-    ...(greeting?.trim() ? ["", greeting.trim()] : []),
+    `¡Hola, ${familyName}!`,
+    "",
+    greeting?.trim() || defaultGreeting(memberNames.length),
     "",
     `Con mucha alegría ${plural ? "los" : "te"} invitamos a celebrar nuestros XV años.`,
     "",
@@ -64,7 +84,7 @@ export function reminderMessage({ familyName, memberNames, pendingNames, url, de
   const partial = plural && pendingNames.length > 0 && pendingNames.length < memberNames.length;
 
   return [
-    `¡Hola, ${familyName}! ✨`,
+    `¡Hola, ${familyName}!`,
     "",
     `${plural ? "Les" : "Te"} recordamos con cariño que nos encantaría saber si ${plural ? "podrán" : "podrás"} acompañarnos en nuestros XV años, el sábado 28 de noviembre.`,
     ...(partial ? ["", `Aún nos falta saber de: ${joinNames(pendingNames)}.`] : []),

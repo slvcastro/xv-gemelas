@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Bell, Check, Copy, DoorOpen, ExternalLink, Eye, EyeOff, MessageCircle, Music, Pencil, Send, Trash2 } from "lucide-react";
 import { markFamilySent, setMemberRsvp } from "@/app/actions/adminGuests";
 import { RSVP_LABELS, countMembers, type Counts, type Rsvp } from "@/lib/families";
-import { invitationMessage, reminderMessage, whatsappUrl } from "@/lib/whatsapp";
+import { invitationMessage, reminderMessage } from "@/lib/whatsapp";
+import { SendWhatsAppDialog } from "./SendWhatsAppDialog";
 import { ChildTag, RSVP_TONE, RsvpIcon, StatusBadge, btnSmall, copyText } from "./ui";
 import type { AdminFamily } from "./types";
 
@@ -36,6 +37,7 @@ export function FamilyCard({
   const [copied, setCopied] = useState(false);
   const [changing, setChanging] = useState<string | null>(null);
   const [savingMember, setSavingMember] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   const c = countMembers(family.members);
   const memberNames = family.members.map((m) => m.name);
@@ -55,8 +57,8 @@ export function FamilyCard({
     }
   };
 
-  const handleSend = () => {
-    // The link opens WhatsApp in a new tab; meanwhile record the date for the "Sin enviar" filter.
+  const handleSent = () => {
+    // WhatsApp opens in a new tab (or the message was copied); record the date for the "Sin enviar" filter.
     markFamilySent(family.id).then((r) => {
       if (!r.success) notify(r.error);
     });
@@ -160,17 +162,14 @@ export function FamilyCard({
       {family.notes && <p className="mt-2 font-sans text-xs italic text-blue-mist">Nota: {family.notes}</p>}
 
       <div className="mt-4 flex flex-wrap gap-2 pt-1">
-        <a
-          href={whatsappUrl(family.phone, message)}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={handleSend}
+        <button
+          type="button"
+          onClick={() => setSending(true)}
           className="inline-flex min-h-10 items-center gap-1.5 bg-emerald-600 px-3 py-2 font-sans text-xs font-medium text-white transition-colors hover:bg-emerald-500"
-          title={family.phone ? `Enviar a ${family.phone}` : "Sin teléfono: WhatsApp te pedirá elegir el contacto"}
         >
           {isReminder ? <Bell size={14} aria-hidden="true" /> : <MessageCircle size={14} aria-hidden="true" />}
           {isReminder ? "Recordatorio" : "WhatsApp"}
-        </a>
+        </button>
         <button type="button" onClick={handleCopy} className={btnSmall}>
           {copied ? <Check size={14} className="text-emerald-300" aria-hidden="true" /> : <Copy size={14} aria-hidden="true" />}
           {copied ? "¡Copiado!" : "Copiar enlace"}
@@ -190,6 +189,17 @@ export function FamilyCard({
           <Trash2 size={14} aria-hidden="true" /> Eliminar
         </button>
       </div>
+
+      {sending && (
+        <SendWhatsAppDialog
+          title={isReminder ? "Enviar recordatorio" : "Enviar invitación"}
+          familyName={family.name}
+          phone={family.phone}
+          initialMessage={message}
+          onSent={handleSent}
+          onClose={() => setSending(false)}
+        />
+      )}
     </li>
   );
 }

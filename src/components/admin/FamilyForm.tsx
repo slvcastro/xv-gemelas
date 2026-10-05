@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, Sparkles, X } from "lucide-react";
 import { createFamily, updateFamily } from "@/app/actions/adminGuests";
 import { LIMITS, RSVP_LABELS, plural, type Rsvp } from "@/lib/families";
+import { GREETING_SUGGESTIONS, findSuggestion, suggestionText } from "@/lib/greetings";
 import { btnPrimary, btnSecondary, inputCls, labelCls } from "./ui";
 import type { AdminFamily } from "./types";
 
@@ -39,7 +40,8 @@ export function FamilyForm({
       : [newRow()]
   );
   const [phone, setPhone] = useState(family?.phone ?? "");
-  const [greeting, setGreeting] = useState(family?.greeting ?? "");
+  // New families start with a proposed message; editing keeps what was saved (empty stays empty).
+  const [greeting, setGreeting] = useState(family ? (family.greeting ?? "") : GREETING_SUGGESTIONS[0].plural);
   const [notes, setNotes] = useState(family?.notes ?? "");
   const [isActive, setIsActive] = useState(family?.isActive ?? true);
   const [confirmRemove, setConfirmRemove] = useState<number | null>(null);
@@ -81,6 +83,9 @@ export function FamilyForm({
   const named = rows.filter((r) => r.name.trim());
   const adults = named.filter((r) => !r.isChild).length;
   const children = named.length - adults;
+  // A suggested message follows the family size (singular for one person) until the admin edits it.
+  const suggestion = findSuggestion(greeting);
+  const shownGreeting = suggestion ? suggestionText(suggestion, Math.max(named.length, 1)) : greeting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +105,7 @@ export function FamilyForm({
       // family answered while it was open.
       members: named.map((r) => ({ id: r.id, name: r.name, isChild: r.isChild, ...(editing && r.rsvp !== r.savedRsvp && { rsvp: r.rsvp }) })),
       phone,
-      greeting,
+      greeting: shownGreeting,
       notes,
       ...(editing && { isActive }),
     };
@@ -276,17 +281,38 @@ export function FamilyForm({
 
       <div>
         <label htmlFor="fam-greeting" className={labelCls}>
-          Mensaje personalizado (opcional)
+          Mensaje personalizado
         </label>
         <textarea
           id="fam-greeting"
-          rows={3}
+          rows={4}
           className={inputCls}
-          value={greeting}
+          value={shownGreeting}
           onChange={(e) => setGreeting(e.target.value)}
-          placeholder="Ej. Querida familia, su cariño ha sido parte de nuestra historia y nos encantaría que nos acompañen."
+          placeholder="Escribe unas palabras para esta familia o elige una sugerencia."
           maxLength={LIMITS.greeting}
         />
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 font-sans text-[11px] text-blue-mist">
+            <Sparkles size={12} className="text-gold" aria-hidden="true" /> Sugerencias:
+          </span>
+          {GREETING_SUGGESTIONS.map((s) => {
+            const active = suggestion === s;
+            return (
+              <button
+                key={s.label}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setGreeting(suggestionText(s, Math.max(named.length, 1)))}
+                className={`min-h-8 border px-2.5 font-sans text-[11px] transition-colors ${
+                  active ? "border-gold bg-gold/15 text-gold" : "border-gold/25 text-blue-ice/90 hover:border-gold/60 hover:text-gold"
+                }`}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
         <p className="mt-1 font-sans text-[11px] text-blue-mist/80">Lo verán al abrir su invitación y va en el WhatsApp.</p>
       </div>
 

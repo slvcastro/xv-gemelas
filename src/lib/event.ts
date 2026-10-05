@@ -10,7 +10,9 @@ export const RECEPTION_STARTS_AT = new Date("2026-11-29T03:00:00Z");
 /** Last valid day for the RSVP deadline (the day of the party). */
 export const LAST_DEADLINE_DAY = "2026-11-28";
 
-export const DRESS_CODE_NOTE = "Código de vestimenta: gala (evitar cualquier tono de azul).";
+/** Dress code, as the family asked: formal wear for everyone and no shade of blue (reserved for the twins). */
+export const DRESS_CODE_NOTE =
+  "Vestimenta: ropa de gala para damas y caballeros. Por favor, no portar ninguna gama de azul: es el color reservado para las quinceañeras.";
 
 export type Venue = {
   label: string;

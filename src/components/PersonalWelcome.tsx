@@ -2,6 +2,7 @@ import { CalendarClock } from "lucide-react";
 import { CornerTicks, Ornament } from "@/components/decor";
 import { Reveal } from "@/components/Reveal";
 import { formatLongDate } from "@/lib/format";
+import { defaultGreeting } from "@/lib/greetings";
 
 /**
  * Personal greeting right after the cover: the family name, the message the admin wrote for them (or a
@@ -21,11 +22,7 @@ export function PersonalWelcome({
   deadline: Date | null;
 }) {
   const single = memberNames.length === 1;
-  const message =
-    greeting?.trim() ||
-    (single
-      ? "Nos haría muy felices compartir contigo esta noche tan especial. Tu presencia será nuestro mejor regalo."
-      : "Nos haría muy felices compartir con ustedes esta noche tan especial. Su presencia será nuestro mejor regalo.");
+  const message = greeting?.trim() || defaultGreeting(memberNames.length);
   const deadlineLabel = formatLongDate(deadline);
 
   return (
