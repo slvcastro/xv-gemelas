@@ -22,6 +22,8 @@ export const familyKey = (name: string) => normalizeText(name);
 
 const HEADER_FIRST = /^(familia|familias|invitacion|invitaciones|grupo|nombre de la familia)$/;
 const HEADER_SECOND = /^(integrante|integrantes|nombre|nombres|invitado|invitados|persona|personas)$/;
+const HEADER_TYPE = /^(tipo|tipo \(adulto\/nino\)|adulto\/nino|adulto o nino|edad|categoria)$/;
+const HEADER_PHONE = /^(telefono|tel|tel\.|celular|cel|cel\.|whatsapp|movil|numero)$/;
 
 /** Splits one line by the separator, honouring "quoted, cells" (as Excel/Sheets export them). */
 function splitLine(line: string, sep: string) {
@@ -70,19 +72,34 @@ export function parseFamiliesImport(text: string): ImportParseResult {
   let lastKey: string | null = null;
   let firstRow = true;
   let memberCount = 0;
+  let columns = { family: 0, member: 1, type: 2, phone: 3 };
 
   lines.forEach((rawLine, index) => {
     const line = index + 1;
     const cells = splitLine(rawLine, sep);
     if (cells.every((c) => !c)) return; // blank row
 
-    const [familyCell = "", memberCell = "", typeCell = "", phoneCell = ""] = cells;
     if (firstRow) {
       firstRow = false;
-      if (HEADER_FIRST.test(normalizeText(familyCell)) || HEADER_SECOND.test(normalizeText(memberCell))) {
+      if (HEADER_FIRST.test(normalizeText(cells[0] ?? "")) || HEADER_SECOND.test(normalizeText(cells[1] ?? ""))) {
         headerDetected = true;
+        // Columns in another order (e.g. Familia | Integrante | Teléfono) are mapped by their header.
+        const find = (re: RegExp) => cells.findIndex((c) => re.test(normalizeText(c)));
+        const type = find(HEADER_TYPE);
+        const phone = find(HEADER_PHONE);
+        columns = { ...columns, type: type >= 0 ? type : phone === 2 ? -1 : 2, phone: phone >= 0 ? phone : type === 3 ? -1 : 3 };
         return;
       }
+    }
+    const cell = (i: number) => (i >= 0 ? (cells[i] ?? "") : "");
+    const familyCell = cell(columns.family);
+    const memberCell = cell(columns.member);
+    let typeCell = cell(columns.type);
+    let phoneCell = cell(columns.phone);
+    // A phone number typed in the "Tipo" column (3-column lists without type).
+    if (!phoneCell && typeCell.replace(/\D/g, "").length >= 7) {
+      phoneCell = typeCell;
+      typeCell = "";
     }
 
     // A blank family cell continues the family above (common when the name is written only once).
