@@ -7,6 +7,7 @@ import { RSVPForm } from "@/components/RSVPForm";
 import { SectionTitle } from "@/components/decor";
 import { getInvitationByToken, markInvitationOpened } from "@/lib/invitations";
 import { getInvitationMedia } from "@/lib/media";
+import { SITE_DESCRIPTION, openGraph } from "@/lib/metadata";
 import { checkInPath, getSiteUrl } from "@/lib/site";
 
 type Props = { params: Promise<{ token: string }> };
@@ -15,19 +16,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { token } = await params;
   const [invitation, { sharePreview }] = await Promise.all([getInvitationByToken(token), getInvitationMedia()]);
   const description = invitation
-    ? `Invitación especial para ${invitation.name} · Sábado 28 de noviembre de 2026 · Ticul, Yucatán`
-    : "Sábado 28 de noviembre de 2026 · Ticul, Yucatán";
-  return {
-    title: "XV Años · Kelly & Kyara",
-    description,
-    openGraph: {
-      title: "XV Años · Kelly & Kyara",
-      description,
-      locale: "es_MX",
-      type: "website",
-      ...(sharePreview && { images: [{ url: sharePreview.url }] }),
-    },
-  };
+    ? `Invitación especial para ${invitation.name} · Sábado 28 de noviembre de 2026`
+    : SITE_DESCRIPTION;
+  return { description, openGraph: openGraph(description, sharePreview?.url) };
 }
 
 export default async function InvitationPage({ params }: Props) {
