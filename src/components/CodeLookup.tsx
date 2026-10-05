@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { OpeningVeil } from "@/components/OpeningVeil";
 
 /** Backup for guests who only have their 6-character code: opens /i/<code>. */
 export function CodeLookup({ autoFocus = false }: { autoFocus?: boolean }) {
@@ -17,6 +18,8 @@ export function CodeLookup({ autoFocus = false }: { autoFocus?: boolean }) {
         if (!clean) return;
         setOpening(true);
         router.push(`/i/${clean}`);
+        // Safety net: if navigation doesn't happen (same URL, offline), don't leave the veil up forever.
+        setTimeout(() => setOpening(false), 9000);
       }}
       className="flex flex-col gap-4"
     >
@@ -44,6 +47,8 @@ export function CodeLookup({ autoFocus = false }: { autoFocus?: boolean }) {
       >
         {opening ? "Abriendo…" : "Abrir mi invitación"}
       </button>
+      {/* The page "comes alive" while the personal invitation loads; it stays until the new page replaces this one. */}
+      {opening && <OpeningVeil fixed label="Abriendo su invitación…" />}
     </form>
   );
 }

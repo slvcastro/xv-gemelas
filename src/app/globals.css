@@ -380,6 +380,21 @@ html:has([data-splash="sealed"]) .fx-open * {
     animation: cd-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
+  /* Velo de apertura (OpeningVeil): el sello respira y brilla mientras carga la invitación. */
+  .veil-seal {
+    animation: veil-breathe 2.4s ease-in-out infinite;
+  }
+  .veil-glow {
+    background: radial-gradient(circle, rgba(246, 231, 168, 0.5) 0%, rgba(216, 196, 119, 0.16) 38%, transparent 66%);
+    animation: veil-glow 2.4s ease-in-out infinite;
+  }
+  .veil-spark {
+    animation: spark 2.1s ease-out infinite;
+  }
+  .veil-label {
+    animation: veil-glow 2.4s ease-in-out infinite;
+  }
+
   /* Intro del sobre (desde que aparece la pantalla). Sin invitado, el sobre llega antes. */
   .splash {
     --t-env: 0.75s;
@@ -455,6 +470,21 @@ html:has([data-splash="sealed"]) .fx-open * {
   }
   [data-splash="opening"] .splash-bg {
     animation: fx-out-plain 0.42s ease-in-out 1s both;
+  }
+}
+
+@keyframes veil-breathe {
+  50% {
+    transform: scale(1.06);
+  }
+}
+@keyframes veil-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
   }
 }
 
