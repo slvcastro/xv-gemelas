@@ -24,7 +24,7 @@ const STEPS = [
   {
     icon: ScanLine,
     title: "El día de la fiesta, escanea el QR",
-    text: "Quien confirmó recibe un pase con QR. En la entrada, escanéalo con la cámara del celular (con este panel abierto) y registra quién llegó.",
+    text: "Quien confirmó recibe un pase con QR. En la entrada, escanéalo con la cámara de un celular donde ya hayas entrado a este panel y registra quién llegó.",
   },
 ];
 
