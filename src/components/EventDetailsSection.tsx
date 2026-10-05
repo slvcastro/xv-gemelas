@@ -35,7 +35,6 @@ export const EventDetailsSection = () => {
                   <p>{venue.address[0]}</p>
                   <p>{venue.address[1]}</p>
                 </address>
-                <p className="mt-2 font-sans text-xs tracking-wide text-blue-mist/80">Plus Code {venue.plusCode}</p>
                 <span className="block min-h-8 flex-1" aria-hidden="true" />
                 <a
                   href={venue.mapUrl}

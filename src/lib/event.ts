@@ -3,13 +3,23 @@
  * the WhatsApp message. Edit here and every place stays consistent.
  */
 
+export const EVENT_DATE_LABEL = "Sábado 28 de noviembre de 2026";
+/** Start of the ceremony (7:30 p. m. in Yucatán, UTC-6) and of the reception (9:00 p. m.). */
+export const CEREMONY_STARTS_AT = new Date("2026-11-29T01:30:00Z");
+export const RECEPTION_STARTS_AT = new Date("2026-11-29T03:00:00Z");
+/** Last valid day for the RSVP deadline (the day of the party). */
+export const LAST_DEADLINE_DAY = "2026-11-28";
+
+/** Dress code, as the family asked: formal wear for everyone and no shade of blue (reserved for the twins). */
+export const DRESS_CODE_NOTE =
+  "Vestimenta: ropa de gala para damas y caballeros. Por favor, no portar ninguna gama de azul: es el color reservado para las quinceañeras.";
+
 export type Venue = {
   label: string;
   place: string;
   time: string;
   /** Two address lines, same shape for both venues so the cards stay symmetrical. */
   address: [string, string];
-  plusCode: string;
   mapUrl: string;
 };
 
@@ -18,7 +28,6 @@ export const CEREMONY: Venue = {
   place: "Iglesia de Guadalupe",
   time: "7:30 p. m.",
   address: ["Calle 13", "97862 Ticul, Yuc."],
-  plusCode: "CF48+FG",
   mapUrl: "https://maps.app.goo.gl/MgsqCLBZAn3a8kNn7",
 };
 
@@ -27,7 +36,6 @@ export const RECEPTION: Venue = {
   place: "Local San Juan",
   time: "9:00 p. m.",
   address: ["Calle 10 A x 31, Col. San Juan", "97863 Ticul, Yuc."],
-  plusCode: "9FVJ+6F",
   mapUrl: "https://maps.app.goo.gl/AykNL1cFP1HyLVdcA",
 };
 
@@ -54,7 +62,7 @@ export const CALENDAR_URL =
   encodeURIComponent(
     `Ceremonia ${CEREMONY.time}: ${CEREMONY.place}, ${CEREMONY.address.join(", ")}.\n` +
       `Recepción ${RECEPTION.time}: ${RECEPTION.place}, ${RECEPTION.address.join(", ")}.\n` +
-      "Código de vestimenta: gala (evitar cualquier tono de azul)."
+      DRESS_CODE_NOTE
   ) +
   "&location=" +
   encodeURIComponent(`${CEREMONY.place}, ${CEREMONY.address.join(", ")}`);

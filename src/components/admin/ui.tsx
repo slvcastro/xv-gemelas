@@ -1,20 +1,21 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { X } from "lucide-react";
-import { STATUS_LABELS, type AdminInvitation } from "./types";
+import { useEffect, useId, useRef } from "react";
+import { Check, CircleHelp, X } from "lucide-react";
+import { RSVP_LABELS, type FamilyStatus, type Rsvp } from "@/lib/families";
+import { STATUS_LABELS } from "./types";
 
 export const btnPrimary =
-  "inline-flex items-center justify-center gap-2 bg-foil px-4 py-2.5 font-sans text-[11px] font-medium uppercase tracking-[0.2em] text-navy transition-opacity hover:opacity-90 disabled:opacity-40";
+  "inline-flex min-h-11 items-center justify-center gap-2 bg-foil px-4 py-2.5 font-sans text-[11px] font-medium uppercase tracking-[0.2em] text-navy transition-opacity hover:opacity-90 disabled:opacity-40";
 export const btnSecondary =
-  "inline-flex items-center justify-center gap-2 border border-gold/40 px-4 py-2.5 font-sans text-[11px] uppercase tracking-[0.2em] text-gold transition-colors hover:border-gold hover:bg-gold/10 disabled:opacity-40";
+  "inline-flex min-h-11 items-center justify-center gap-2 border border-gold/40 px-4 py-2.5 font-sans text-[11px] uppercase tracking-[0.2em] text-gold transition-colors hover:border-gold hover:bg-gold/10 disabled:opacity-40";
 export const btnSmall =
-  "inline-flex items-center gap-1.5 border border-gold/25 px-3 py-2 font-sans text-xs text-blue-ice transition-colors hover:border-gold/60 hover:text-gold disabled:opacity-40";
+  "inline-flex min-h-10 items-center gap-1.5 border border-gold/25 px-3 py-2 font-sans text-xs text-blue-ice transition-colors hover:border-gold/60 hover:text-gold disabled:opacity-40";
 export const inputCls =
   "w-full border border-gold/25 bg-navy/60 px-3 py-2.5 font-sans text-sm text-blue-ice placeholder:text-blue-mist/50 outline-none transition-colors focus:border-gold";
 export const labelCls = "mb-1.5 block font-sans text-[10px] uppercase tracking-[0.25em] text-blue-mist";
 
-export function StatusBadge({ status }: { status: AdminInvitation["status"] }) {
+export function StatusBadge({ status }: { status: FamilyStatus }) {
   const tone =
     status === "confirmed"
       ? "border-emerald-300/40 bg-emerald-400/10 text-emerald-200"
@@ -28,9 +29,53 @@ export function StatusBadge({ status }: { status: AdminInvitation["status"] }) {
   );
 }
 
+export const RSVP_TONE: Record<Rsvp, string> = {
+  yes: "border-emerald-300/50 bg-emerald-400/15 text-emerald-100",
+  no: "border-red-300/45 bg-red-400/10 text-red-200",
+  pending: "border-amber-300/45 bg-amber-400/10 text-amber-100",
+};
+
+/** ✓ / ✗ / ? symbol of a member's answer. */
+export function RsvpIcon({ rsvp, size = 13 }: { rsvp: Rsvp; size?: number }) {
+  const Icon = rsvp === "yes" ? Check : rsvp === "no" ? X : CircleHelp;
+  return <Icon size={size} strokeWidth={2.2} aria-hidden="true" />;
+}
+
+/** Small "✓ Asistirá" style chip. */
+export function RsvpChip({ rsvp, compact = false }: { rsvp: Rsvp; compact?: boolean }) {
+  return (
+    <span className={`inline-flex shrink-0 items-center gap-1 border px-1.5 py-0.5 font-sans text-[11px] ${RSVP_TONE[rsvp]}`}>
+      <RsvpIcon rsvp={rsvp} size={12} />
+      {compact ? <span className="sr-only">{RSVP_LABELS[rsvp]}</span> : RSVP_LABELS[rsvp]}
+    </span>
+  );
+}
+
+export function ChildTag() {
+  return (
+    <span className="inline-flex shrink-0 items-center border border-blue-mist/30 px-1.5 py-0.5 font-sans text-[10px] uppercase tracking-[0.12em] text-blue-mist">
+      Niño
+    </span>
+  );
+}
+
 /** Accessible modal built on <dialog>: Esc closes it and focus stays inside. */
-export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+export function Modal({
+  title,
+  onClose,
+  children,
+  wide = false,
+  dismissOnBackdrop = true,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  wide?: boolean;
+  /** Forms pass false so a stray tap outside never discards what was typed. */
+  dismissOnBackdrop?: boolean;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     const dialog = ref.current;
@@ -41,18 +86,23 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
   return (
     <dialog
       ref={ref}
+      aria-labelledby={titleId}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
       }}
       onClick={(e) => {
-        if (e.target === ref.current) onClose();
+        if (dismissOnBackdrop && e.target === ref.current) onClose();
       }}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg border border-gold/30 bg-navy p-0 text-blue-ice shadow-2xl backdrop:bg-navy-deep/80 backdrop:backdrop-blur-sm"
+      className={`m-auto max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1rem)] border border-gold/30 bg-navy p-0 text-blue-ice shadow-2xl backdrop:bg-navy-deep/80 backdrop:backdrop-blur-sm sm:w-[calc(100%-2rem)] ${
+        wide ? "max-w-2xl" : "max-w-lg"
+      }`}
     >
-      <div className="flex items-center justify-between border-b border-gold/15 px-5 py-4">
-        <h2 className="font-serif text-xl text-gold">{title}</h2>
-        <button onClick={onClose} className="p-1 text-blue-mist hover:text-gold" aria-label="Cerrar">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gold/15 bg-navy px-5 py-4">
+        <h2 id={titleId} className="font-serif text-xl text-gold">
+          {title}
+        </h2>
+        <button type="button" onClick={onClose} className="-m-2 p-2 text-blue-mist hover:text-gold" aria-label="Cerrar">
           <X size={20} />
         </button>
       </div>
@@ -68,6 +118,7 @@ export function ConfirmDialog({
   busy,
   onConfirm,
   onClose,
+  tone = "danger",
 }: {
   title: string;
   message: React.ReactNode;
@@ -75,6 +126,8 @@ export function ConfirmDialog({
   busy?: boolean;
   onConfirm: () => void;
   onClose: () => void;
+  /** "danger" (red) for deletions, "primary" (gold) for confirmations that are not destructive. */
+  tone?: "danger" | "primary";
 }) {
   return (
     <Modal title={title} onClose={onClose}>
@@ -87,7 +140,11 @@ export function ConfirmDialog({
           type="button"
           onClick={onConfirm}
           disabled={busy}
-          className="inline-flex items-center justify-center gap-2 bg-red-500/90 px-4 py-2.5 font-sans text-[11px] font-medium uppercase tracking-[0.2em] text-white transition-colors hover:bg-red-500 disabled:opacity-50"
+          className={
+            tone === "danger"
+              ? "inline-flex min-h-11 items-center justify-center gap-2 bg-red-500/90 px-4 py-2.5 font-sans text-[11px] font-medium uppercase tracking-[0.2em] text-white transition-colors hover:bg-red-500 disabled:opacity-50"
+              : btnPrimary
+          }
         >
           {busy ? "Procesando…" : confirmLabel}
         </button>

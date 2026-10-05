@@ -55,6 +55,18 @@ export const AdminLogin = ({ next = "/admin", pendingToken }: { next?: string; p
         >
           {isPending ? "Entrando…" : "Entrar"}
         </button>
+
+        <details className="group text-left">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-center font-sans text-xs text-blue-mist underline-offset-4 transition-colors hover:text-gold hover:underline [&::-webkit-details-marker]:hidden">
+            ¿No sabes la contraseña?
+          </summary>
+          <p className="mt-2 font-sans text-xs leading-relaxed text-blue-ice/80">
+            La contraseña es la que se guardó al publicar el sitio. Quien administra la página puede verla o cambiarla en{" "}
+            <strong className="font-medium text-gold">Vercel → Settings → Environment Variables</strong>, en la variable{" "}
+            <code className="font-mono text-gold">ADMIN_PASSWORD</code>. Después de cambiarla hay que volver a publicar el sitio
+            (Deployments → Redeploy).
+          </p>
+        </details>
       </form>
     </main>
   );

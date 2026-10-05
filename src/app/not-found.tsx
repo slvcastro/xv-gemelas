@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { CheckInvitation } from "@/components/CheckInvitation";
-import { Ornament, SparkleField } from "@/components/decor";
+import { CodeLookup } from "@/components/CodeLookup";
+import { CornerTicks, Ornament, SparkleField } from "@/components/decor";
 
 export default function NotFound() {
   return (
@@ -10,16 +10,21 @@ export default function NotFound() {
         <Ornament className="relative h-7 w-44" />
         <h1 className="text-foil relative mt-4 font-serif text-3xl md:text-4xl">Invitación no encontrada</h1>
         <p className="relative mt-4 max-w-sm font-sans text-sm leading-relaxed text-blue-ice/80">
-          El enlace no es válido o la invitación fue desactivada. Revisa que el código esté bien escrito.
+          El enlace no es válido o la invitación fue desactivada. Revisa que el código esté bien escrito o pídenos tu enlace por WhatsApp.
         </p>
         <Link
           href="/"
-          className="relative mt-6 font-sans text-xs uppercase tracking-[0.25em] text-blue-mist underline-offset-4 hover:text-gold hover:underline"
+          className="relative mt-4 inline-flex min-h-11 items-center font-sans text-xs uppercase tracking-[0.25em] text-blue-mist underline-offset-4 hover:text-gold hover:underline"
         >
           Ver la invitación general
         </Link>
       </section>
-      <CheckInvitation />
+      <section className="relative flex w-full flex-col items-center px-4 pb-24 pt-10">
+        <div className="card-gold relative w-full max-w-sm px-6 py-8 text-center">
+          <CornerTicks className="inset-2.5" />
+          <CodeLookup />
+        </div>
+      </section>
     </main>
   );
 }

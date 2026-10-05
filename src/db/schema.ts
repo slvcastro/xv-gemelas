@@ -2,6 +2,8 @@ import { pgTable, serial, text, timestamp, boolean, integer, uuid, numeric, pgEn
 
 export const invitationStatusEnum = pgEnum('invitation_status', ['pending', 'confirmed', 'declined']);
 export const mediaUsageEnum = pgEnum('media_usage', ['cover_both', 'portrait_kelly', 'portrait_kyara', 'gallery', 'share_preview', 'none']);
+/** Answer of each family member: 'pending' is shown as "Por definir". */
+export const guestRsvpEnum = pgEnum('guest_rsvp', ['pending', 'yes', 'no']);
 
 export const settings = pgTable("settings", {
   id: serial("id").primaryKey(),
@@ -34,6 +36,12 @@ export const media = pgTable("media", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
+/**
+ * One invitation = one family (or one person) with a single personal link /i/<token>.
+ * `name` is the family name, `greeting` the personal message they see and that goes in the WhatsApp.
+ * `status`, `maxGuests` and `checkedInAt` are caches derived from the members (guests) and are
+ * recalculated on every change: see recalcFamily() in src/lib/families.ts.
+ */
 export const invitations = pgTable("invitations", {
   id: uuid("id").primaryKey().defaultRandom(),
   token: text("token").notNull().unique(), // Random short string for URLs
@@ -48,16 +56,29 @@ export const invitations = pgTable("invitations", {
   openedAt: timestamp("opened_at", { withTimezone: true }),
   respondedAt: timestamp("responded_at", { withTimezone: true }),
   checkedInAt: timestamp("checked_in_at", { withTimezone: true }),
+  /** Song the family asked for (optional, from the RSVP form). */
+  songRequest: text("song_request"),
+  /** Message from the family to Kelly & Kyara (optional, from the RSVP form). */
+  guestMessage: text("guest_message"),
+  /** Set when the admin taps "Enviar por WhatsApp" (powers the "Sin enviar" filter). */
+  sentAt: timestamp("sent_at", { withTimezone: true }),
 });
 
+/** Members of a family, registered in advance by the admin. Guests never type names. */
 export const guests = pgTable("guests", {
   id: uuid("id").primaryKey().defaultRandom(),
   invitationId: uuid("invitation_id").references(() => invitations.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   dietaryRestrictions: text("dietary_restrictions"),
+  // Unused since answers are per member (kept: production migrations are additive only).
   attendingCeremony: boolean("attending_ceremony").default(true),
   attendingReception: boolean("attending_reception").default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  rsvp: guestRsvpEnum("rsvp").notNull().default("pending"),
+  isChild: boolean("is_child").notNull().default(false),
+  /** Entrance registered at the door (per member; the QR is per family). */
+  checkedInAt: timestamp("checked_in_at", { withTimezone: true }),
+  sortOrder: integer("sort_order").notNull().default(0),
 });
 
 export const accessLogs = pgTable("access_logs", {
@@ -71,4 +92,5 @@ export const accessLogs = pgTable("access_logs", {
 
 export type Invitation = typeof invitations.$inferSelect;
 export type Guest = typeof guests.$inferSelect;
+export type GuestRsvp = (typeof guestRsvpEnum.enumValues)[number];
 export type Media = typeof media.$inferSelect;

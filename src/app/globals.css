@@ -77,7 +77,6 @@
   /* background-clip:text only paints inside the box: give descenders (y, g, ¿) room so they are not cut.
      foil-script widens this room through the variables for Great Vibes (loops of the K, tails of the y). */
   padding: var(--foil-pt, 0) var(--foil-px, 0) var(--foil-pb, 0.15em);
-  animation: foil-shine 8s linear infinite;
 }
 
 /* Use together with text-foil on Great Vibes headings. */
@@ -127,11 +126,6 @@
   backdrop-filter: blur(6px);
 }
 
-@keyframes foil-shine {
-  to {
-    background-position: 200% center;
-  }
-}
 
 @keyframes twinkle {
   0%, 100% { opacity: 0.25; transform: scale(0.8) rotate(0deg); }
@@ -192,8 +186,7 @@
   .animate-twinkle,
   .animate-deco-draw-x,
   .animate-deco-draw-y,
-  .animate-deco-fade,
-  .text-foil {
+  .animate-deco-fade {
     animation: none;
   }
 }
@@ -204,7 +197,7 @@
   background: transparent;
   border: 0;
   border-bottom: 1px solid rgba(216, 196, 119, 0.35);
-  padding: 0.6rem 0;
+  padding: 0.75rem 0;
   color: var(--color-blue-ice);
   outline: none;
   border-radius: 0;
@@ -215,4 +208,506 @@
 }
 .input-gold:focus {
   border-bottom-color: var(--color-gold);
+}
+
+/* ---------- Sobre de lacre: intro, apertura y entradas al hacer scroll ----------
+   Todo se anima con CSS (transform, opacity, stroke-dashoffset y máscaras), así arranca con el primer
+   pintado, sin esperar a React. El estado base de cada elemento es el final (visible): con movimiento
+   reducido no se anima nada y todo se ve completo.
+
+   Disparadores: las animaciones arrancan al montarse, salvo dentro de
+   - .fx-inview (InView): en pausa en su primer cuadro hasta que el bloque entra en pantalla;
+   - .fx-await-open (la tarjeta dentro del sobre) y .fx-open (la portada): en pausa hasta abrir el sobre
+     (la portada es hermana del sobre en InvitationLayout: combinador ~, sin :has, que recalcula toda la página).
+   Así los retrasos (--d) cuentan desde el disparo. */
+.fx-inview:not([data-inview]),
+.fx-inview:not([data-inview]) *,
+[data-splash="sealed"] .fx-await-open,
+[data-splash="sealed"] .fx-await-open *,
+[data-splash="sealed"] ~ div .fx-open,
+[data-splash="sealed"] ~ div .fx-open * {
+  animation-play-state: paused !important;
+}
+
+/* Trazos que se dibujan (pathLength = 1). */
+.orn-line,
+.sig-stroke,
+.env-line,
+.seal-crack {
+  stroke-dasharray: 1 2;
+}
+.seal-crack {
+  stroke-dashoffset: 1.01;
+}
+/* Destello de la pluma: un trazo cortísimo que recorre el esqueleto; fuera del trazo en reposo. */
+.sig-nib {
+  stroke-dasharray: 0.012 3;
+  stroke-dashoffset: -1.05;
+}
+
+.spark,
+.seal-ripple,
+.seal-glow {
+  opacity: 0;
+}
+.seal-glow {
+  background: radial-gradient(
+    circle,
+    rgba(255, 248, 220, 0.9) 0%,
+    rgba(240, 203, 101, 0.5) 20%,
+    rgba(216, 196, 119, 0.14) 44%,
+    transparent 68%
+  );
+}
+.env-flap {
+  transform-origin: 50% 0;
+}
+.env-shadow {
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(1, 10, 28, 0.6), transparent 72%);
+}
+
+/* Palabras escritas en tinta (InkWords). El margen negativo da lugar a los rasgos de Great Vibes
+   que se salen de la caja, para que la máscara no los recorte. */
+.ink-w {
+  position: relative;
+  display: inline-block;
+}
+.ink-w-txt {
+  display: inline-block;
+  padding: 0.2em 0.35em 0.4em;
+  margin: -0.2em -0.35em -0.4em;
+}
+.ink-w-nib {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+.ink-w-nib::after {
+  content: "";
+  position: absolute;
+  right: -5px;
+  top: 52%;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #fffbe8 0 20%, rgba(246, 231, 168, 0.55) 42%, transparent 70%);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Piezas genéricas de entrada */
+  .fx-in {
+    animation: fx-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s) both;
+  }
+  .fx-pop {
+    animation: fx-pop 0.6s cubic-bezier(0.3, 1.4, 0.5, 1) calc(var(--d, 0s) + 0.25s) both;
+  }
+  .fx-grow-l,
+  .fx-grow-r {
+    animation: fx-grow-x 1s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--d, 0s) + 0.1s) both;
+  }
+  .fx-grow-l {
+    transform-origin: right center;
+  }
+  .fx-grow-r {
+    transform-origin: left center;
+  }
+  .fx-grow-y {
+    transform-origin: top;
+    animation: fx-grow-y 1.8s cubic-bezier(0.45, 0, 0.2, 1) var(--d, 0s) both;
+  }
+  .fx-arch {
+    animation: fx-arch 0.7s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s) both;
+  }
+  .fx-show {
+    animation: fx-show 0s linear var(--d, 0s) both;
+  }
+  /* Títulos: se escriben de izquierda a derecha y luego los barre un brillo de lámina dorada. */
+  .fx-title {
+    -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+    mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+    -webkit-mask-size: 250% 100%;
+    mask-size: 250% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    animation:
+      ink-wipe 1s cubic-bezier(0.45, 0.1, 0.4, 1) var(--d, 0s) both,
+      foil-sweep 1.6s ease-out calc(var(--d, 0s) + 0.75s) both;
+  }
+
+  /* Ornamento: líneas que se trazan del centro hacia afuera, estrella y remates que aparecen. */
+  .orn-line {
+    animation: fx-draw 0.85s cubic-bezier(0.65, 0, 0.35, 1) var(--d, 0s) both;
+  }
+  .orn-gem,
+  .orn-end {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .orn-gem {
+    animation: fx-pop 0.6s cubic-bezier(0.3, 1.5, 0.5, 1) calc(var(--d, 0s) + 0.05s) both;
+  }
+  .orn-end {
+    animation: fx-pop 0.45s ease-out calc(var(--d, 0s) + 0.7s) both;
+  }
+
+  /* Firma con pluma y palabras en tinta */
+  .sig-stroke {
+    animation: fx-draw var(--t) cubic-bezier(0.4, 0.1, 0.6, 0.9) var(--d) both;
+  }
+  .sig-nib {
+    animation: sig-nib var(--t) cubic-bezier(0.4, 0.1, 0.6, 0.9) var(--d) both;
+  }
+  .sig-settle {
+    animation: fx-fade 0.45s ease-out var(--sig-end) both;
+  }
+  .ink-w-txt {
+    -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+    mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+    -webkit-mask-size: 250% 100%;
+    mask-size: 250% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    animation: ink-wipe var(--t) cubic-bezier(0.35, 0.1, 0.55, 0.95) var(--d) both;
+  }
+  .ink-w-nib {
+    animation: ink-nib var(--t) cubic-bezier(0.35, 0.1, 0.55, 0.95) var(--d) both;
+  }
+  .spark {
+    animation: spark 1s ease-out var(--d, 0s) both;
+  }
+  .cd-digit {
+    animation: cd-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Velo de apertura (OpeningVeil): el sello respira y brilla mientras carga la invitación. */
+  .veil-seal {
+    animation: veil-breathe 2.4s ease-in-out infinite;
+  }
+  .veil-glow {
+    background: radial-gradient(circle, rgba(246, 231, 168, 0.5) 0%, rgba(216, 196, 119, 0.16) 38%, transparent 66%);
+    animation: veil-glow 2.4s ease-in-out infinite;
+  }
+  .veil-spark {
+    animation: spark 2.1s ease-out infinite;
+  }
+  .veil-label {
+    animation: veil-glow 2.4s ease-in-out infinite;
+  }
+
+  /* Intro del sobre (desde que aparece la pantalla). Sin invitado, el sobre llega antes. */
+  .splash {
+    --t-env: 0.75s;
+    --t-seal: 1.15s;
+  }
+  .splash[data-guest="0"] {
+    --t-env: 0.3s;
+    --t-seal: 0.75s;
+  }
+  .env-body {
+    --rise: 22px;
+    animation: fx-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) var(--t-env) both;
+  }
+  .env-shadow {
+    animation: fx-fade 0.8s ease-out var(--t-env) both;
+  }
+  .env-line {
+    animation: fx-draw 1s cubic-bezier(0.65, 0, 0.35, 1) calc(var(--t-env) + 0.15s + var(--d, 0s)) both;
+  }
+  .env-seal {
+    animation: seal-stamp 0.55s cubic-bezier(0.25, 1.2, 0.5, 1) var(--t-seal) both;
+  }
+  .seal-ripple {
+    animation: ripple 0.9s ease-out calc(var(--t-seal) + 0.3s) both;
+  }
+
+  /* Apertura (desde el toque en "Abrir invitación"): el sello brilla y se parte, la solapa se abre,
+     la tarjeta sube y vuela hasta el título de la portada mientras el sobre y el fondo se desvanecen. */
+  [data-splash="opening"] .splash-out {
+    animation: fx-out 0.35s ease-in both;
+  }
+  [data-splash="opening"] .seal-glow {
+    animation: glow-flare 0.6s ease-out both;
+  }
+  [data-splash="opening"] .seal-glint {
+    animation: glint 0.32s cubic-bezier(0.3, 0, 0.4, 1) both;
+  }
+  [data-splash="opening"] .seal-crack {
+    animation: fx-draw 0.12s linear 0.17s both;
+  }
+  /* The crack and the glint go away with the two halves (not left floating over the cover photo). */
+  [data-splash="opening"] .seal-fx {
+    animation: fx-out-plain 0.2s ease-in 0.55s both;
+  }
+  [data-splash="opening"] .seal-half-l {
+    animation: half-l 0.45s cubic-bezier(0.5, 0, 0.75, 0.4) 0.27s both;
+  }
+  [data-splash="opening"] .seal-half-r {
+    animation: half-r 0.45s cubic-bezier(0.5, 0, 0.75, 0.4) 0.27s both;
+  }
+  [data-splash="opening"] .env-flap {
+    animation: flap-open 0.52s cubic-bezier(0.45, 0, 0.3, 1) 0.3s both;
+  }
+  [data-splash="opening"] .env-part {
+    animation: env-drop 0.4s cubic-bezier(0.5, 0, 0.75, 0) 0.92s both;
+  }
+  [data-splash="opening"] .env-flap-wrap {
+    animation:
+      flap-z 0s linear 0.56s both,
+      env-drop 0.4s cubic-bezier(0.5, 0, 0.75, 0) 0.92s both;
+  }
+  [data-splash="opening"] .env-shadow {
+    animation: fx-out-plain 0.3s ease-in 0.9s both;
+  }
+  [data-splash="opening"] .env-card-rise {
+    animation:
+      card-rise 0.45s cubic-bezier(0.3, 0.6, 0.3, 1) 0.5s both,
+      card-front 0s linear 0.95s both;
+  }
+  [data-splash="opening"] .env-card {
+    animation:
+      card-fly 0.44s cubic-bezier(0.55, 0, 0.2, 1) 0.95s both,
+      fx-out-plain 0.18s linear 1.4s both;
+  }
+  [data-splash="opening"] .env-card-paper {
+    animation: fx-out-plain 0.32s ease-in 1.04s both;
+  }
+  [data-splash="opening"] .splash-bg {
+    animation: fx-out-plain 0.42s ease-in-out 1s both;
+  }
+}
+
+@keyframes veil-breathe {
+  50% {
+    transform: scale(1.06);
+  }
+}
+@keyframes veil-glow {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes fx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--rise, 12px));
+  }
+}
+@keyframes fx-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fx-show {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes fx-out {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+@keyframes fx-out-plain {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes fx-draw {
+  from {
+    stroke-dashoffset: 1.01;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes fx-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2) rotate(-60deg);
+  }
+}
+@keyframes fx-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes fx-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes fx-arch {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+}
+@keyframes ink-wipe {
+  from {
+    -webkit-mask-position: 100% 0;
+    mask-position: 100% 0;
+  }
+  to {
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+}
+@keyframes ink-nib {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+}
+@keyframes foil-sweep {
+  from {
+    background-position: 100% center;
+  }
+  to {
+    background-position: 0% center;
+  }
+}
+@keyframes sig-nib {
+  from {
+    stroke-dashoffset: 0.03;
+  }
+  to {
+    stroke-dashoffset: -1.03;
+  }
+}
+@keyframes spark {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-40deg);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.1) rotate(10deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.3) rotate(60deg);
+  }
+}
+@keyframes seal-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.6) rotate(-10deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.93) rotate(1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes ripple {
+  from {
+    opacity: 0.85;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+@keyframes glow-flare {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+}
+@keyframes glint {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(190px);
+  }
+}
+@keyframes half-l {
+  to {
+    opacity: 0;
+    transform: translate(-22%, 30%) rotate(-24deg);
+  }
+}
+@keyframes half-r {
+  to {
+    opacity: 0;
+    transform: translate(20%, 36%) rotate(20deg);
+  }
+}
+@keyframes flap-open {
+  from {
+    transform: perspective(800px) rotateX(0deg);
+  }
+  to {
+    transform: perspective(800px) rotateX(180deg);
+  }
+}
+@keyframes flap-z {
+  from {
+    z-index: 4;
+  }
+  to {
+    z-index: 1;
+  }
+}
+@keyframes env-drop {
+  to {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+}
+@keyframes card-rise {
+  to {
+    transform: translateY(-80%);
+  }
+}
+@keyframes card-front {
+  from {
+    z-index: 2;
+  }
+  to {
+    z-index: 6;
+  }
+}
+@keyframes card-fly {
+  to {
+    transform: translate(var(--tx, 0), var(--ty, 0)) scale(var(--s, 1));
+  }
+}
+@keyframes cd-in {
+  from {
+    opacity: 0;
+    transform: translateY(-40%);
+  }
 }
