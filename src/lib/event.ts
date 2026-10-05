@@ -9,7 +9,6 @@ export type Venue = {
   time: string;
   /** Two address lines, same shape for both venues so the cards stay symmetrical. */
   address: [string, string];
-  plusCode: string;
   mapUrl: string;
 };
 
@@ -18,7 +17,6 @@ export const CEREMONY: Venue = {
   place: "Iglesia de Guadalupe",
   time: "7:30 p. m.",
   address: ["Calle 13", "97862 Ticul, Yuc."],
-  plusCode: "CF48+FG",
   mapUrl: "https://maps.app.goo.gl/MgsqCLBZAn3a8kNn7",
 };
 
@@ -27,7 +25,6 @@ export const RECEPTION: Venue = {
   place: "Local San Juan",
   time: "9:00 p. m.",
   address: ["Calle 10 A x 31, Col. San Juan", "97863 Ticul, Yuc."],
-  plusCode: "9FVJ+6F",
   mapUrl: "https://maps.app.goo.gl/AykNL1cFP1HyLVdcA",
 };
 

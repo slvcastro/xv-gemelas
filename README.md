@@ -43,7 +43,7 @@ npm run build
 
 ## Datos que se editan en el código
 
-- Lugares, horarios, Plus Codes, mapas e itinerario: `src/lib/event.ts` (una sola fuente; la usan las tarjetas, el calendario y el mensaje de WhatsApp).
+- Lugares, horarios, mapas e itinerario: `src/lib/event.ts` (una sola fuente; la usan las tarjetas, el calendario y el mensaje de WhatsApp).
 - Bancos para transferencias: `BANK_INFO` en `src/components/GiftsSection.tsx` (el botón se oculta mientras esté vacío).
 - Padres y padrinos: `src/components/FamilySection.tsx`.
 - Mensaje de WhatsApp: `src/lib/whatsapp.ts`.
