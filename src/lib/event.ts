@@ -33,7 +33,7 @@ export const CEREMONY: Venue = {
 
 export const RECEPTION: Venue = {
   label: "Recepción",
-  place: "Local San Juan",
+  place: "Villa Cielo",
   time: "9:00 p. m.",
   address: ["Calle 10 A x 31, Col. San Juan", "97863 Ticul, Yuc."],
   mapUrl: "https://maps.app.goo.gl/AykNL1cFP1HyLVdcA",

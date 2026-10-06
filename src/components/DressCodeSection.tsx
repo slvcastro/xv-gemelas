@@ -1,7 +1,8 @@
 import { CornerTicks, SectionTitle } from "@/components/decor";
 import { Reveal } from "@/components/Reveal";
 
-const RESERVED_BLUES = ["#05214B", "#193B59", "#527C96", "#91B1C5", "#D5E5EB"];
+/** The blues reserved for Kelly and Kyara (the family's reference card): no guest wears any of them. */
+const RESERVED_BLUES = ["#0D41E2", "#0C63E8", "#0A85ED", "#09A6F3", "#08C7FB"];
 
 export const DressCodeSection = () => {
   return (
@@ -25,15 +26,16 @@ export const DressCodeSection = () => {
             <p className="mt-3 text-balance font-serif text-[1.375rem] leading-snug text-gold md:text-2xl">
               No portar ninguna gama de azul
             </p>
-            <div className="mt-6 flex justify-center gap-2.5" aria-hidden="true">
+            <div className="mt-6 flex justify-center gap-2.5" role="img" aria-label="Tonos de azul reservados para las quinceañeras">
               {RESERVED_BLUES.map((c) => (
                 <span key={c} className="relative h-8 w-8 rounded-full border border-gold/40" style={{ backgroundColor: c }}>
                   <span className="absolute left-1/2 top-1/2 h-px w-10 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-gold/80" />
                 </span>
               ))}
             </div>
-            <p className="mt-6 text-pretty font-sans text-sm font-light leading-relaxed text-blue-ice/80 md:text-[0.9375rem]">
-              El azul es el color reservado para las quinceañeras. ¡Gracias por ayudarnos a cuidar cada detalle de esta noche!
+            <p className="eyebrow mt-3 text-blue-mist">Tonos reservados para Kelly y Kyara</p>
+            <p className="mt-5 text-pretty font-sans text-sm font-light leading-relaxed text-blue-ice/80 md:text-[0.9375rem]">
+              Estos tonos de azul son exclusivos de las quinceañeras. ¡Gracias por ayudarnos a cuidar cada detalle de esta noche!
             </p>
           </div>
         </Reveal>

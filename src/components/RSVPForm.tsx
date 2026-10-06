@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import { CalendarClock, Check, CircleHelp, Music, Pencil, Plus, X } from "lucide-react";
 import { submitRSVP, type SavedRSVP } from "@/app/actions/invitations";
@@ -438,10 +437,8 @@ function ThankYouCard({
   ].filter((g) => g.list.length > 0);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="card-gold relative mx-auto w-full max-w-md px-5 py-10 text-center sm:px-8"
+    <div
+      className="fx-in card-gold relative mx-auto w-full max-w-md px-5 py-10 text-center sm:px-8"
       aria-live="polite"
     >
       <CornerTicks className="inset-2.5" />
@@ -536,6 +533,6 @@ function ThankYouCard({
           <Pencil size={13} aria-hidden="true" /> Modificar respuesta
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 }
