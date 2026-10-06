@@ -1,8 +1,9 @@
-"use client";
+import { InView } from "@/components/InView";
 
-import { motion } from "framer-motion";
-
-/** Fades/slides its children in when they scroll into view. */
+/**
+ * Fades/slides its children in when they scroll into view. Pure CSS (`fx-in`, started by InView), so
+ * the invitation ships no animation library; with reduced motion the content is simply shown.
+ */
 export function Reveal({
   children,
   delay = 0,
@@ -15,14 +16,8 @@ export function Reveal({
   className?: string;
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.9, delay, ease: [0.22, 1, 0.36, 1] }}
-      className={className}
-    >
+    <InView className={`fx-in ${className}`} style={{ "--d": `${delay}s`, "--rise": `${y}px` } as React.CSSProperties}>
       {children}
-    </motion.div>
+    </InView>
   );
 }

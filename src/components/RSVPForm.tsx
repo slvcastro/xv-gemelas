@@ -1,14 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { QRCodeSVG } from "qrcode.react";
+import dynamic from "next/dynamic";
 import { CalendarClock, Check, CircleHelp, Music, Pencil, Plus, X } from "lucide-react";
 import { submitRSVP, type SavedRSVP } from "@/app/actions/invitations";
 import { CornerTicks } from "@/components/decor";
 import { LIMITS, joinNames, type Rsvp } from "@/lib/families";
 import { formatLongDateWeekday } from "@/lib/format";
 import type { PublicMember } from "@/lib/invitations";
+
+// The QR library is only needed once a family has confirmed: load it with the thank-you card, not with
+// the invitation. The white square keeps the layout steady while it arrives.
+const QRCodeSVG = dynamic(() => import("qrcode.react").then((m) => m.QRCodeSVG), {
+  ssr: false,
+  loading: () => <div className="h-[184px] w-[184px]" aria-hidden="true" />,
+});
 
 type RSVPFormProps = {
   token: string;
@@ -438,10 +444,8 @@ function ThankYouCard({
   ].filter((g) => g.list.length > 0);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="card-gold relative mx-auto w-full max-w-md px-5 py-10 text-center sm:px-8"
+    <div
+      className="fx-in card-gold relative mx-auto w-full max-w-md px-5 py-10 text-center sm:px-8"
       aria-live="polite"
     >
       <CornerTicks className="inset-2.5" />
@@ -536,6 +540,6 @@ function ThankYouCard({
           <Pencil size={13} aria-hidden="true" /> Modificar respuesta
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 }

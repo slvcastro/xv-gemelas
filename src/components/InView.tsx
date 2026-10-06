@@ -39,10 +39,12 @@ function finishAnimations(el: HTMLElement | null) {
 export function InView({
   children,
   className = "",
+  style,
   finishOnTap = false,
 }: {
   children: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
   /** A tap inside shows the final state at once (for longer sequences such as the personal welcome). */
   finishOnTap?: boolean;
 }) {
@@ -59,7 +61,7 @@ export function InView({
     return () => o.unobserve(el);
   }, []);
   return (
-    <div ref={ref} className={`fx-inview ${className}`} onPointerDown={finishOnTap ? () => finishAnimations(ref.current) : undefined}>
+    <div ref={ref} className={`fx-inview ${className}`} style={style} onPointerDown={finishOnTap ? () => finishAnimations(ref.current) : undefined}>
       {children}
     </div>
   );

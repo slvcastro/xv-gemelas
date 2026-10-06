@@ -2,7 +2,6 @@
 
 import { Gift, CreditCard, X, Copy, Check, Mail } from "lucide-react";
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Ornament } from "@/components/decor";
 
 /**
@@ -72,45 +71,38 @@ export const GiftsSection = () => {
         )}
       </div>
 
-      <AnimatePresence>
-        {show && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-navy-deep/85 p-4 backdrop-blur-sm"
-            onClick={() => setShow(false)}
+      {show && (
+        <div
+          className="fx-fade fixed inset-0 z-[70] flex items-center justify-center bg-navy-deep/85 p-4 backdrop-blur-sm"
+          onClick={() => setShow(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ "--rise": "16px" } as React.CSSProperties}
+            className="fx-in card-gold relative w-full max-w-sm bg-navy p-8"
           >
-            <motion.div
-              initial={{ y: 16, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 16, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="card-gold relative w-full max-w-sm bg-navy p-8"
-            >
-              <button onClick={() => setShow(false)} className="absolute right-4 top-4 text-blue-mist hover:text-gold" aria-label="Cerrar">
-                <X size={20} />
-              </button>
-              <h3 className="mb-6 font-serif text-2xl text-gold">Transferencia</h3>
-              <div className="space-y-4 text-left font-sans text-sm">
-                {rows.map((r) => (
-                  <div key={r.label}>
-                    <p className="mb-1 text-[11px] uppercase tracking-[0.25em] text-blue-mist">{r.label}</p>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-medium tracking-wider text-blue-ice">{r.value}</p>
-                      {r.copyable && (
-                        <button onClick={() => copy(r.label, r.value)} className="text-gold" aria-label={`Copiar ${r.label}`}>
-                          {copied === r.label ? <Check size={16} /> : <Copy size={16} />}
-                        </button>
+            <button onClick={() => setShow(false)} className="absolute right-4 top-4 text-blue-mist hover:text-gold" aria-label="Cerrar">
+              <X size={20} />
+            </button>
+            <h3 className="mb-6 font-serif text-2xl text-gold">Transferencia</h3>
+            <div className="space-y-4 text-left font-sans text-sm">
+              {rows.map((r) => (
+                <div key={r.label}>
+                  <p className="mb-1 text-[11px] uppercase tracking-[0.25em] text-blue-mist">{r.label}</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-medium tracking-wider text-blue-ice">{r.value}</p>
+                    {r.copyable && (
+                      <button onClick={() => copy(r.label, r.value)} className="text-gold" aria-label={`Copiar ${r.label}`}>
+                        {copied === r.label ? <Check size={16} /> : <Copy size={16} />}
+                      </button>
                       )}
                     </div>
                   </div>
                 ))}
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </section>
   );
 };

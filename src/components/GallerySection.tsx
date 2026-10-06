@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { ArchFrame, SectionTitle } from "@/components/decor";
 import type { PublicPhoto } from "@/lib/media";
@@ -99,51 +98,46 @@ export const GallerySection = ({ portraits, photos }: { portraits: PublicPhoto[]
         )}
       </div>
 
-      <AnimatePresence>
-        {open !== null && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center bg-navy-deep/95 p-4"
-            onClick={() => setOpen(null)}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Visor de fotos"
-          >
-            <button className="absolute right-4 top-4 z-10 p-2 text-gold" aria-label="Cerrar" onClick={() => setOpen(null)}>
-              <X size={28} />
-            </button>
-            {all.length > 1 && (
-              <>
-                <button
-                  className="absolute left-2 z-10 p-3 text-gold md:left-6"
-                  aria-label="Anterior"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpen((open - 1 + all.length) % all.length);
-                  }}
-                >
-                  <ChevronLeft size={32} />
-                </button>
-                <button
-                  className="absolute right-2 z-10 p-3 text-gold md:right-6"
-                  aria-label="Siguiente"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpen((open + 1) % all.length);
-                  }}
-                >
-                  <ChevronRight size={32} />
-                </button>
-              </>
+      {open !== null && (
+        <div
+          className="fx-fade fixed inset-0 z-[70] flex items-center justify-center bg-navy-deep/95 p-4"
+          onClick={() => setOpen(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Visor de fotos"
+        >
+          <button className="absolute right-4 top-4 z-10 p-2 text-gold" aria-label="Cerrar" onClick={() => setOpen(null)}>
+            <X size={28} />
+          </button>
+          {all.length > 1 && (
+            <>
+              <button
+                className="absolute left-2 z-10 p-3 text-gold md:left-6"
+                aria-label="Anterior"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen((open - 1 + all.length) % all.length);
+                }}
+              >
+                <ChevronLeft size={32} />
+              </button>
+              <button
+                className="absolute right-2 z-10 p-3 text-gold md:right-6"
+                aria-label="Siguiente"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen((open + 1) % all.length);
+                }}
+              >
+                <ChevronRight size={32} />
+              </button>
+            </>
             )}
             <div className="relative h-[80vh] w-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
               <Image src={all[open].url} alt="Foto de Kelly y Kyara" fill sizes="100vw" className="object-contain" />
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </section>
   );
 };
