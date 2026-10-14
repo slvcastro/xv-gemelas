@@ -251,10 +251,14 @@
 .burst-p,
 .twin-glow,
 .twin-dust,
-.twin-tiara,
 .twin-glint,
 .shooting-star {
   opacity: 0;
+}
+/* The twins' photos stay out of sight (and out of the page's "largest paint") until the envelope opens. */
+[data-splash="sealed"] ~ div .twin-img,
+[data-splash="sealed"] ~ div .twin-glow {
+  visibility: hidden;
 }
 .seal-glow {
   background: radial-gradient(
@@ -430,13 +434,12 @@
   .twin-pool {
     animation: fx-fade 1.4s ease-out var(--d, 0s) both;
   }
-  .twin-tiara {
-    animation:
-      spark 1s ease-out var(--d, 0s) both,
-      glint-twinkle 6s ease-in-out calc(var(--d, 0s) + 3s) infinite;
-  }
+  /* Glints and the star between them play for a while after the opening, then rest (no endless frames). */
   .twin-glint {
-    animation: glint-twinkle 5s ease-in-out var(--d, 0s) infinite;
+    animation: glint-twinkle 5s ease-in-out var(--d, 0s) 4 both;
+  }
+  .twin-star {
+    animation: twinkle 4s ease-in-out var(--d, 0s) 6 both;
   }
   /* Estrellas fugaces que cruzan el cielo de la portada (unas cuantas veces, después de la apertura). */
   .shooting-star {

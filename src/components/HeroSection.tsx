@@ -12,12 +12,15 @@ export const HeroSection = () => {
     <section className="fx-open relative isolate flex min-h-[100svh] w-full flex-col items-center justify-center overflow-hidden px-6 py-14 text-center md:py-12">
       <NightBackdrop />
       <DecoFrame className="inset-3 opacity-70 md:inset-6" corner={44} cornerMd={88} />
-      {/* Shooting stars: each crosses the sky a few times (rotated track, the star runs along it). */}
-      <div className="pointer-events-none absolute left-[-15%] top-[2.5%] w-0 rotate-[8deg]" aria-hidden="true">
-        <span className="shooting-star block h-px w-24 bg-gradient-to-r from-transparent via-gold-warm/50 to-[#fffbe8] md:w-36" style={fxDelay(3.6)} />
-      </div>
-      <div className="pointer-events-none absolute right-[-15%] top-[11%] w-0 rotate-[172deg]" aria-hidden="true">
-        <span className="shooting-star block h-px w-20 bg-gradient-to-r from-transparent via-gold-warm/50 to-[#fffbe8] md:w-28" style={fxDelay(8.1)} />
+      {/* Shooting stars: each crosses the sky a few times (rotated track, the star runs along it),
+          inside the frame's window so they never cross the gold border. */}
+      <div className="pointer-events-none absolute inset-5 overflow-hidden md:inset-8" aria-hidden="true">
+        <div className="absolute left-[-12%] top-[1%] w-0 rotate-[8deg]">
+          <span className="shooting-star block h-px w-24 bg-gradient-to-r from-transparent via-gold-warm/50 to-[#fffbe8] md:w-36" style={fxDelay(3.6)} />
+        </div>
+        <div className="absolute right-[-12%] top-[9%] w-0 rotate-[172deg]">
+          <span className="shooting-star block h-px w-20 bg-gradient-to-r from-transparent via-gold-warm/50 to-[#fffbe8] md:w-28" style={fxDelay(8.1)} />
+        </div>
       </div>
 
       <div className="relative z-10 flex w-full max-w-3xl flex-col items-center">

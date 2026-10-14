@@ -1,4 +1,5 @@
 import { Sparkle, Sunburst, fxDelay } from "@/components/decor";
+import { TwinPicture } from "@/components/TwinPicture";
 
 type Twin = {
   name: string;
@@ -25,25 +26,6 @@ const rand = (i: number, k: number) => {
   const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
   return x - Math.floor(x);
 };
-
-function Picture({ file, alt, className, style }: { file: string; alt: string; className: string; style?: React.CSSProperties }) {
-  return (
-    <picture>
-      <source type="image/avif" srcSet={`/fotos/${file}.avif`} />
-      {/* Static, pre-optimised files: no Image Optimization quota is used. */}
-      <img
-        src={`/fotos/${file}.webp`}
-        alt={alt}
-        width={600}
-        height={737}
-        decoding="async"
-        className={`absolute inset-0 h-full w-full select-none ${className}`}
-        style={style}
-        draggable={false}
-      />
-    </picture>
-  );
-}
 
 /** Golden dust that rises from the hem while the picture materialises. */
 function Dust({ start, seed }: { start: number; seed: number }) {
@@ -74,16 +56,22 @@ function Figure({ twin, start, seed, className = "" }: { twin: Twin; start: numb
   const done = r2(start + REVEAL);
   return (
     <div className={`relative aspect-[600/737] w-[var(--fw)] shrink-0 ${className}`}>
-      <Picture file={twin.file} alt={`${twin.name} con su vestido de XV años`} className="twin-img" style={fxDelay(start)} />
+      <TwinPicture file={twin.file} alt={`${twin.name} con su vestido de XV años`} className="twin-img" style={fxDelay(start)} />
       {/* A golden copy of the picture lights up the edge that is materialising. */}
       <span aria-hidden="true">
-        <Picture file={twin.file} alt="" className="twin-glow" style={fxDelay(start)} />
+        <TwinPicture file={twin.file} alt="" className="twin-glow" style={fxDelay(start)} />
       </span>
       <Dust start={start} seed={seed} />
 
+      {/* The tiara shines once, then catches the light now and then (two stars: one animation each, so
+          both stay on the compositor). */}
       <Sparkle
-        className="twin-tiara absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-[#fffbe8] md:h-4 md:w-4"
+        className="spark absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 text-[#fffbe8] md:h-4 md:w-4"
         style={{ left: `${twin.tiara[0]}%`, top: `${twin.tiara[1] - 1}%`, ...fxDelay(r2(done - 0.2)) }}
+      />
+      <Sparkle
+        className="twin-glint absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 text-[#fffbe8] md:h-3.5 md:w-3.5"
+        style={{ left: `${twin.tiara[0]}%`, top: `${twin.tiara[1] - 1}%`, ...fxDelay(r2(done + 2.4 + seed * 1.3)) }}
       />
       {twin.glints.map(([x, y], i) => (
         <Sparkle
@@ -107,7 +95,7 @@ function Figure({ twin, start, seed, className = "" }: { twin: Twin; start: numb
 export function TwinReveal({ start = 1.15 }: { start?: number }) {
   const [kelly, kyara] = TWINS;
   return (
-    <div className="relative mt-4 flex justify-center [--fw:min(50vw,13rem)] md:mt-3 md:[--fw:15rem] md:tall:mt-5 md:tall:[--fw:17.5rem] short:mt-3 short:[--fw:10rem]">
+    <div className="relative mt-4 flex justify-center [--fw:min(calc((100vw_-_4rem)/1.83),13rem)] md:mt-3 md:[--fw:15rem] md:tall:mt-5 md:tall:[--fw:17.5rem] short:mt-3 short:[--fw:clamp(6.5rem,calc((100svh_-_13.25rem)_*_0.81),10rem)]">
       <div
         className="twin-rays pointer-events-none absolute left-1/2 top-[30%] aspect-square w-[185%] -translate-x-1/2 -translate-y-1/2"
         style={fxDelay(r2(start - 0.15))}
@@ -116,7 +104,7 @@ export function TwinReveal({ start = 1.15 }: { start?: number }) {
         <Sunburst className="h-full w-full text-gold opacity-40" inner={3} />
         {/* The star the rays come from, between the two of them: they turn towards its light. */}
         <span className="absolute left-1/2 top-1/2 aspect-square w-[30%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(255,246,214,0.9),rgba(240,203,101,0.38)_9%,rgba(216,196,119,0.1)_32%,transparent_66%)]" />
-        <Sparkle className="animate-twinkle absolute left-1/2 top-1/2 -ml-2 -mt-2 h-4 w-4 text-[#fffbe8]" />
+        <Sparkle className="twin-star absolute left-1/2 top-1/2 -ml-2 -mt-2 h-4 w-4 text-[#fffbe8]" />
       </div>
       {/* Pool of light at their feet */}
       <span
@@ -126,6 +114,7 @@ export function TwinReveal({ start = 1.15 }: { start?: number }) {
       />
 
       <Figure twin={kelly} start={start} seed={0} />
+      {/* Overlap 0.17 fw: the pair is 1.83 fw wide (the 1.83 in --fw and in TwinPicture's sizes). */}
       <Figure twin={kyara} start={r2(start + 0.3)} seed={1} className="-ml-[calc(var(--fw)*0.17)]" />
 
       {/* Stepped floor: two lines that open from the centre */}

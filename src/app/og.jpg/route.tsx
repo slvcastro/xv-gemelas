@@ -70,9 +70,9 @@ async function card() {
         <div style={{ position: "absolute", right: -60, top: 60, width: 560, height: 560, borderRadius: 280, background: "radial-gradient(circle, rgba(240,203,101,0.22), transparent 66%)" }} />
         {/* Kelly (left) and Kyara (right) turn towards each other, towards the names. */}
         {/* eslint-disable-next-line @next/next/no-img-element -- Satori (ImageResponse) only understands <img> */}
-        <img src={kelly} width={408} height={501} style={{ position: "absolute", left: 26, bottom: 30 }} alt="" />
+        <img src={kelly} width={386} height={474} style={{ position: "absolute", left: 26, bottom: 30 }} alt="" />
         {/* eslint-disable-next-line @next/next/no-img-element -- Satori (ImageResponse) only understands <img> */}
-        <img src={kyara} width={408} height={501} style={{ position: "absolute", right: 26, bottom: 30 }} alt="" />
+        <img src={kyara} width={386} height={474} style={{ position: "absolute", right: 26, bottom: 30 }} alt="" />
 
         {/* Double gold frame (Satori has no `inset` shorthand) */}
         <div
@@ -83,7 +83,7 @@ async function card() {
         />
 
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: -36 }}>
-          <div style={{ fontSize: 21, letterSpacing: 9, color: "#91B1C5" }}>NUESTROS XV AÑOS</div>
+          <div style={{ fontSize: 24, letterSpacing: 9, color: "#A9C3D3" }}>NUESTROS XV AÑOS</div>
           <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
             <div style={{ width: 90, height: 1, background: "#D8C477", opacity: 0.8 }} />
             <div style={{ width: 9, height: 9, margin: "0 14px", background: "#D8C477", transform: "rotate(45deg)" }} />
@@ -94,8 +94,8 @@ async function card() {
             <span style={{ fontStyle: "italic", fontSize: 46, lineHeight: 1, margin: "-6px 0 4px" }}>&amp;</span>
             <span style={{ fontFamily: "GreatVibes", fontSize: 112, lineHeight: 1.12 }}>Kyara</span>
           </div>
-          <div style={{ fontStyle: "italic", fontSize: 30, color: "#D5E5EB", marginTop: 6 }}>Sábado 28 de noviembre</div>
-          <div style={{ fontSize: 24, letterSpacing: 8, color: "#D8C477", marginTop: 6 }}>2026</div>
+          <div style={{ fontStyle: "italic", fontSize: 35, color: "#E4EEF2", marginTop: 4 }}>Sábado 28 de noviembre</div>
+          <div style={{ fontSize: 30, letterSpacing: 8, color: "#E6CF83", marginTop: 4 }}>2026</div>
         </div>
       </div>
     ),
