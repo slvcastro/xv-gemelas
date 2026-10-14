@@ -10,8 +10,8 @@ export const metadataBase = new URL(
     : "http://localhost:3000"
 );
 
-/** Card generated at build time by src/app/og.png/route.tsx; used when no "share_preview" photo exists. */
-const DEFAULT_CARD = { url: "/og.png", width: 1200, height: 630, alt: "Kelly & Kyara · Nuestros XV años" };
+/** Card generated at build time by src/app/og.jpg/route.tsx; used when no "share_preview" photo exists. */
+const DEFAULT_CARD = { url: "/og.jpg", type: "image/jpeg", width: 1200, height: 630, alt: "Kelly & Kyara · Nuestros XV años" };
 
 /**
  * Open Graph block for WhatsApp / social previews. A segment's openGraph replaces (not merges)

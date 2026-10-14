@@ -101,13 +101,16 @@ export function Sunburst({
   rays = 72,
   className = "",
   fade = 62,
+  inner = 14,
 }: {
   rays?: number;
   className?: string;
   /** % del radio donde los rayos terminan de desvanecerse. */
   fade?: number;
+  /** % del radio donde nacen los rayos (hueco del centro). */
+  inner?: number;
 }) {
-  const lines = Array.from({ length: rays }, (_, i) => ray(0, 0, 14, i % 2 === 0 ? 100 : 80, (i * 360) / rays));
+  const lines = Array.from({ length: rays }, (_, i) => ray(0, 0, inner, i % 2 === 0 ? 100 : 80, (i * 360) / rays));
   const mask = `radial-gradient(circle closest-side, #000 18%, rgba(0,0,0,0.35) ${fade * 0.7}%, transparent ${fade}%)`;
   return (
     <svg

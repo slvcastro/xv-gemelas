@@ -13,8 +13,8 @@ const ACCEPT = "image/jpeg,image/png,image/webp,image/avif";
 const SLOTS: { usage: MediaUsage; title: string; where: string; tip: string; aspect: string }[] = [
   {
     usage: "cover_both",
-    title: "Portada",
-    where: "En el arco dorado de la primera pantalla, debajo de los nombres.",
+    title: "Foto de las dos",
+    where: "Abre la galería. (La primera pantalla ya muestra a Kelly y Kyara con su animación mágica.)",
     tip: "Las dos juntas, foto vertical.",
     aspect: "aspect-[3/4]",
   },
@@ -36,7 +36,7 @@ const SLOTS: { usage: MediaUsage; title: string; where: string; tip: string; asp
     usage: "share_preview",
     title: "Vista previa en WhatsApp",
     where: "La imagen que aparece al mandar el enlace por WhatsApp.",
-    tip: "Opcional: si no subes una, se usa la portada.",
+    tip: "Opcional: si no subes una, se usa la foto de las dos o, si no hay, la tarjeta dorada con Kelly y Kyara.",
     aspect: "aspect-[3/4]",
   },
 ];

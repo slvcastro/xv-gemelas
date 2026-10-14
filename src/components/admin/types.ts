@@ -46,7 +46,7 @@ export type AdminMedia = {
 };
 
 export const MEDIA_USAGE_LABELS: Record<MediaUsage, string> = {
-  cover_both: "Portada",
+  cover_both: "Foto de las dos",
   portrait_kelly: "Retrato de Kelly",
   portrait_kyara: "Retrato de Kyara",
   gallery: "Galería",
