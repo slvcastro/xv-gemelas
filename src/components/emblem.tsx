@@ -201,6 +201,29 @@ const CRACK: [number, number][] = [
 const crackLine = `M${CRACK.map((p) => p.join(" ")).join("L")}`;
 const halfClip = (side: -1 | 1) => `${crackLine}L${side * 60} 56L${side * 60} -56Z`;
 
+const STAR = "M12 0c.6 5.4 2.6 9.4 12 12-9.4 2.6-11.4 6.6-12 12-.6-5.4-2.6-9.4-12-12 9.4-2.6 11.4-6.6 12-12Z";
+const r2 = (v: number) => Math.round(v * 100) / 100;
+
+// Sparks thrown out when the seal breaks: a ring of stars and specks at uneven angles and distances.
+const BURST = Array.from({ length: 18 }, (_, i) => {
+  const angle = (i / 18) * Math.PI * 2 + (i % 3) * 0.17;
+  const dist = 58 + ((i * 37) % 60);
+  const star = i % 3 !== 1;
+  return {
+    star,
+    size: star ? 9 + ((i * 5) % 8) : 4 + (i % 2),
+    color: i % 4 === 0 ? "#fffbe8" : i % 2 ? "#F0CB65" : "#D8C477",
+    style: {
+      "--x": `${r2(Math.cos(angle) * dist)}px`,
+      // A little more upwards than downwards, like sparks that rise.
+      "--y": `${r2(Math.sin(angle) * dist * 0.85 - 10)}px`,
+      "--r": `${(i % 2 ? 1 : -1) * (90 + ((i * 23) % 90))}deg`,
+      "--t": `${r2(0.75 + ((i * 7) % 5) * 0.08)}s`,
+      "--d": `${r2(((i * 11) % 6) * 0.02)}s`,
+    } as React.CSSProperties,
+  };
+});
+
 /**
  * Sello del sobre, preparado para romperse: dos mitades recortadas por una grieta irregular
  * (cada una en su propia capa para moverla con transform), más un brillo y la grieta que se dibuja.
@@ -245,6 +268,26 @@ export function SplitWaxSeal({ id, className = "" }: { id: string; className?: s
         </g>
         <path className="seal-crack" d={crackLine} pathLength={1} fill="none" stroke="#3d2e0c" strokeWidth="1.3" strokeLinejoin="round" />
       </svg>
+      {BURST.map(({ star, size, color, style }, i) =>
+        star ? (
+          <svg
+            key={i}
+            viewBox="0 0 24 24"
+            className="burst-p pointer-events-none absolute left-1/2 top-1/2"
+            style={{ ...style, width: size, height: size, margin: -size / 2 }}
+            fill={color}
+            focusable="false"
+          >
+            <path d={STAR} />
+          </svg>
+        ) : (
+          <span
+            key={i}
+            className="burst-p pointer-events-none absolute left-1/2 top-1/2 rounded-full shadow-[0_0_6px_1px_rgba(240,203,101,0.7)]"
+            style={{ ...style, width: size, height: size, margin: -size / 2, background: color }}
+          />
+        )
+      )}
     </div>
   );
 }

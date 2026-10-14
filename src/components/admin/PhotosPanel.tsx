@@ -13,22 +13,22 @@ const ACCEPT = "image/jpeg,image/png,image/webp,image/avif";
 const SLOTS: { usage: MediaUsage; title: string; where: string; tip: string; aspect: string }[] = [
   {
     usage: "cover_both",
-    title: "Portada",
-    where: "En el arco dorado de la primera pantalla, debajo de los nombres.",
+    title: "Foto de las dos",
+    where: "Primera foto de «Nuestra galería», después de los retratos. (La portada con la animación usa las fotos recortadas de Kelly y Kyara y no se cambia desde aquí.)",
     tip: "Las dos juntas, foto vertical.",
     aspect: "aspect-[3/4]",
   },
   {
     usage: "portrait_kelly",
     title: "Kelly",
-    where: "Retrato de Kelly al inicio de la galería.",
+    where: "Primer retrato de «Nuestra galería».",
     tip: "Kelly sola, foto vertical.",
     aspect: "aspect-[3/4]",
   },
   {
     usage: "portrait_kyara",
     title: "Kyara",
-    where: "Retrato de Kyara al inicio de la galería.",
+    where: "Segundo retrato de «Nuestra galería».",
     tip: "Kyara sola, foto vertical.",
     aspect: "aspect-[3/4]",
   },
@@ -36,7 +36,7 @@ const SLOTS: { usage: MediaUsage; title: string; where: string; tip: string; asp
     usage: "share_preview",
     title: "Vista previa en WhatsApp",
     where: "La imagen que aparece al mandar el enlace por WhatsApp.",
-    tip: "Opcional: si no subes una, se usa la portada.",
+    tip: "Opcional: si no subes una, se usa la foto de las dos o, si no hay, la tarjeta dorada con Kelly y Kyara.",
     aspect: "aspect-[3/4]",
   },
 ];

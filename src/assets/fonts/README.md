@@ -1,4 +1,4 @@
-Fonts used only to render the link-preview card (`src/app/og.png/route.tsx`), which needs `.woff`/`.ttf` files.
+Fonts used only to render the link-preview card (`src/app/og.jpg/route.tsx`), which needs `.woff`/`.ttf` files.
 The page itself loads the same families through `next/font`.
 
 - Great Vibes — Copyright 2010 The Great Vibes Pro Project Authors. SIL Open Font License 1.1.

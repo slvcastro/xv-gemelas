@@ -11,6 +11,7 @@ import { GallerySection } from "@/components/GallerySection";
 import { Ornament, fxDelay } from "@/components/decor";
 import { NameDefs, SignedName, SplitWaxSeal } from "@/components/emblem";
 import { InView } from "@/components/InView";
+import { TapSparkles } from "@/components/TapSparkles";
 import type { InvitationMedia } from "@/lib/media";
 
 /**
@@ -32,6 +33,7 @@ export function InvitationLayout({
   return (
     <main className="flex min-h-screen flex-col items-center overflow-hidden bg-navy">
       <NameDefs />
+      <TapSparkles />
       <SplashScreen
         guestName={guestName}
         // With a guest, the names are written first (title); without one, on the envelope once it lands.
@@ -47,7 +49,7 @@ export function InvitationLayout({
       />
 
       <div className="w-full">
-        <HeroSection cover={media.cover} />
+        <HeroSection />
         {welcome}
         <CountdownSection />
         <MessageSection />
@@ -56,7 +58,8 @@ export function InvitationLayout({
         <ItinerarySection />
         <GiftsSection />
         <DressCodeSection />
-        <GallerySection portraits={media.portraits} photos={media.gallery} />
+        {/* The cover photo (both of them) now opens the gallery: the cover page shows Kelly and Kyara's cut-outs. */}
+        <GallerySection portraits={media.portraits} photos={media.cover ? [media.cover, ...media.gallery] : media.gallery} />
         {children}
 
         <footer className="relative w-full border-t border-gold/15 bg-navy-deep px-6 py-16 text-center">

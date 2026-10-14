@@ -247,8 +247,18 @@
 
 .spark,
 .seal-ripple,
-.seal-glow {
+.seal-glow,
+.burst-p,
+.twin-glow,
+.twin-dust,
+.twin-glint,
+.shooting-star {
   opacity: 0;
+}
+/* The twins' photos stay out of sight (and out of the page's "largest paint") until the envelope opens. */
+[data-splash="sealed"] ~ div .twin-img,
+[data-splash="sealed"] ~ div .twin-glow {
+  visibility: hidden;
 }
 .seal-glow {
   background: radial-gradient(
@@ -316,6 +326,10 @@
   .fx-grow-r {
     transform-origin: left center;
   }
+  .fx-grow-c {
+    transform-origin: center;
+    animation: fx-grow-x 0.9s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s) both;
+  }
   .fx-grow-y {
     transform-origin: top;
     animation: fx-grow-y 1.8s cubic-bezier(0.45, 0, 0.2, 1) var(--d, 0s) both;
@@ -382,6 +396,59 @@
   }
   .cd-digit {
     animation: cd-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Gemelas (TwinReveal): como una transformación de cuento. Se abren los rayos, sube polvo dorado y
+     cada una aparece desde el borde del vestido hasta la tiara (máscara que sube), con una línea de luz
+     dorada en el borde (una copia dorada de la misma foto, recortada por su silueta); luego brilla la
+     tiara y, de vez en cuando, un destello en las lentejuelas. */
+  .twin-img,
+  .twin-glow {
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 230%;
+    mask-size: 100% 230%;
+    -webkit-mask-position: 0 100%;
+    mask-position: 0 100%;
+  }
+  .twin-img {
+    -webkit-mask-image: linear-gradient(to top, #000 46%, transparent 54%);
+    mask-image: linear-gradient(to top, #000 46%, transparent 54%);
+    animation: twin-reveal 1.7s cubic-bezier(0.4, 0.05, 0.45, 1) var(--d, 0s) both;
+  }
+  .twin-glow {
+    -webkit-mask-image: linear-gradient(to top, transparent 45.5%, #000 50%, transparent 53.5%);
+    mask-image: linear-gradient(to top, transparent 45.5%, #000 50%, transparent 53.5%);
+    filter: sepia(1) saturate(2.2) brightness(2.3);
+    mix-blend-mode: screen;
+    animation:
+      twin-reveal 1.7s cubic-bezier(0.4, 0.05, 0.45, 1) var(--d, 0s) both,
+      twin-glow 1.7s linear var(--d, 0s) both;
+  }
+  .twin-dust {
+    animation: dust-rise var(--t, 1.6s) cubic-bezier(0.25, 0.6, 0.4, 1) var(--d, 0s) both;
+  }
+  .twin-rays {
+    animation: rays-in 2.2s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0s) both;
+  }
+  .twin-pool {
+    animation: fx-fade 1.4s ease-out var(--d, 0s) both;
+  }
+  /* Glints and the star between them play for a while after the opening, then rest (no endless frames). */
+  .twin-glint {
+    animation: glint-twinkle 5s ease-in-out var(--d, 0s) 4 both;
+  }
+  .twin-star {
+    animation: twinkle 4s ease-in-out var(--d, 0s) 6 both;
+  }
+  /* Estrellas fugaces que cruzan el cielo de la portada (unas cuantas veces, después de la apertura). */
+  .shooting-star {
+    animation: shooting-star 9s cubic-bezier(0.55, 0, 0.85, 0.55) var(--d, 0s) 3 both;
+  }
+
+  /* Estallido de chispas doradas al partirse el sello */
+  [data-splash="opening"] .burst-p {
+    animation: burst var(--t, 0.9s) cubic-bezier(0.12, 0.75, 0.3, 1) calc(0.22s + var(--d, 0s)) both;
   }
 
   /* Velo de apertura (OpeningVeil): el sello respira y brilla mientras carga la invitación. */
@@ -706,6 +773,89 @@
 @keyframes card-fly {
   to {
     transform: translate(var(--tx, 0), var(--ty, 0)) scale(var(--s, 1));
+  }
+}
+@keyframes twin-reveal {
+  from {
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+  to {
+    -webkit-mask-position: 0 100%;
+    mask-position: 0 100%;
+  }
+}
+@keyframes twin-glow {
+  0%,
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes dust-rise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  15% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx, 0), -100%);
+  }
+}
+@keyframes rays-in {
+  from {
+    opacity: 0;
+    transform: rotate(-24deg) scale(0.55);
+  }
+}
+@keyframes glint-twinkle {
+  0%,
+  14%,
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(0deg);
+  }
+  7% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+@keyframes shooting-star {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  1% {
+    opacity: 1;
+  }
+  8% {
+    opacity: 0;
+    transform: translateX(min(130vw, 1500px));
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(min(130vw, 1500px));
+  }
+}
+@keyframes burst {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--x), var(--y)) scale(1) rotate(var(--r, 90deg));
   }
 }
 @keyframes cd-in {

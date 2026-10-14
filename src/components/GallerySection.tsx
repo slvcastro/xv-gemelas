@@ -91,7 +91,13 @@ export const GallerySection = ({ portraits, photos }: { portraits: PublicPhoto[]
                   <Tile onOpen={openPhoto} p={block[1]} className="aspect-square" />
                 </div>
               ) : (
-                <Tile key={block[0].id} onOpen={openPhoto} p={block[0]} className="aspect-[3/2] w-full" />
+                // A lone photo (e.g. only the vertical photo of both of them) keeps its upright shape.
+                <Tile
+                  key={block[0].id}
+                  onOpen={openPhoto}
+                  p={block[0]}
+                  className={photos.length === 1 ? "mx-auto aspect-[3/4] w-full max-w-sm" : "aspect-[3/2] w-full"}
+                />
               )
             )}
           </div>
