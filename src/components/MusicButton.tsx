@@ -37,7 +37,7 @@ export function MusicButton() {
         className={`max-w-[60vw] truncate rounded-full border border-gold/30 bg-navy-deep/85 px-3.5 py-2 font-sans text-xs text-blue-ice shadow-lg backdrop-blur-sm transition-all duration-500 ${
           showTitle ? "translate-x-0 opacity-100" : "pointer-events-none translate-x-3 opacity-0"
         }`}
-        aria-live="polite"
+        aria-hidden="true"
       >
         {on ? (
           <>
@@ -48,15 +48,20 @@ export function MusicButton() {
         )}
       </p>
 
+      {/* For screen readers: the title is announced when it appears. */}
+      <span className="sr-only" aria-live="polite">
+        {showTitle && on ? `${s.track.title}, ${s.track.artist}` : ""}
+      </span>
+
       {PLAYLIST.length > 1 && on && (
         <button
           type="button"
           onClick={() => nextTrack()}
-          className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-navy-deep/85 text-gold shadow-lg backdrop-blur-sm transition-colors hover:bg-gold hover:text-navy"
+          className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full border border-gold/40 bg-navy-deep/85 text-gold shadow-lg backdrop-blur-sm transition-colors hover:bg-gold hover:text-navy"
           aria-label="Siguiente canción"
           title="Siguiente canción"
         >
-          <SkipForward size={15} strokeWidth={1.6} />
+          <SkipForward size={17} strokeWidth={1.6} />
         </button>
       )}
 
@@ -65,7 +70,6 @@ export function MusicButton() {
         onClick={() => toggleMusic()}
         className="pointer-events-auto relative flex h-12 w-12 items-center justify-center rounded-full border border-gold/60 bg-navy-deep/85 text-gold shadow-[0_6px_24px_-6px_rgba(0,0,0,0.6),0_0_22px_-6px_rgba(216,196,119,0.5)] backdrop-blur-sm transition-transform hover:scale-105 active:scale-95"
         aria-label={label}
-        aria-pressed={on}
         title={label}
       >
         <span className="absolute inset-[3px] rounded-full border border-gold/20" aria-hidden="true" />

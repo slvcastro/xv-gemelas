@@ -45,6 +45,10 @@ let pauseTimer: ReturnType<typeof setTimeout> | undefined;
 let volumeTimer: ReturnType<typeof setInterval> | undefined;
 let endingFade = false;
 let hiddenPause = false;
+/** Paused by the system (headphones or Bluetooth removed, a call, Siri), not by the guest. */
+let systemPaused = false;
+/** Each play / pause / skip gets a number, so a play() that finishes loading late can't undo a pause. */
+let playSeq = 0;
 
 const readPref = () => {
   try {
@@ -133,6 +137,8 @@ function setup() {
   audio.setAttribute("playsinline", "");
   audio.addEventListener("timeupdate", onTime);
   audio.addEventListener("ended", onEnded);
+  audio.addEventListener("pause", onPause);
+  audio.addEventListener("playing", onPlaying);
 
   const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (AC) {
@@ -164,7 +170,11 @@ function setup() {
 
 function play(fadeSeconds: number, announce: boolean) {
   if (!audio) return;
+  const seq = ++playSeq;
   clearTimeout(pauseTimer);
+  systemPaused = false;
+  // A resume in the last seconds must schedule the fade-out again.
+  endingFade = false;
   // The song is only downloaded the first time it is played (a guest who keeps it paused never loads it).
   if (!audio.getAttribute("src")) audio.src = sourceFor(state.track).src;
   void ctx?.resume?.();
@@ -172,14 +182,18 @@ function play(fadeSeconds: number, announce: boolean) {
   audio
     .play()
     .then(() => {
+      if (seq !== playSeq) return; // paused or skipped while it was loading
       update({ status: "playing", ...(announce ? { announce: Date.now() } : {}) });
       fadeTo(MUSIC.volume, fadeSeconds);
     })
-    .catch(() => update({ status: "paused" }));
+    .catch(() => {
+      if (seq === playSeq) update({ status: "paused" });
+    });
 }
 
 function pauseWithFade(seconds: number) {
   if (!audio) return;
+  playSeq++;
   fadeTo(0, seconds);
   update({ status: "paused" });
   clearTimeout(pauseTimer);
@@ -199,6 +213,27 @@ function onEnded() {
   if (state.status !== "playing") return;
   load((state.index + 1) % PLAYLIST.length);
   play(MUSIC.fadeInNext, PLAYLIST.length > 1);
+}
+
+/**
+ * The system paused it (headphones or Bluetooth removed, a call, Siri): show it paused, without saving
+ * "off" (the guest did not choose it). Our own pauses set the status first, and the end of a song also
+ * fires "pause" (with ended = true).
+ */
+function onPause() {
+  if (!audio || audio.ended || state.status !== "playing") return;
+  clearTimeout(pauseTimer); // a pending next song must not restart it
+  systemPaused = true;
+  fadeTo(0, 0.05); // already silent: a later play comes back with its fade-in
+  update({ status: "paused" });
+}
+
+/** The system resumed it by itself (e.g. after a call): show it playing again. */
+function onPlaying() {
+  if (!systemPaused || state.status !== "paused") return;
+  systemPaused = false;
+  update({ status: "playing" });
+  fadeTo(MUSIC.volume, MUSIC.resumeFade);
 }
 
 function onVisibility() {
@@ -245,6 +280,7 @@ export function toggleMusic(on?: boolean) {
 /** Next song (only offered when the playlist has more than one). */
 export function nextTrack() {
   if (!audio || PLAYLIST.length < 2) return;
+  playSeq++;
   fadeTo(0, 0.8);
   clearTimeout(pauseTimer);
   pauseTimer = setTimeout(() => {
