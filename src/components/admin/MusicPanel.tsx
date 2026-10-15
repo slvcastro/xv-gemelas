@@ -236,6 +236,9 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
       // so the file can't reveal the song either.
       const song = readSongFile(new Uint8Array(await picked.arrayBuffer()));
       if (!song) throw new Error(NOT_AUDIO);
+      if (song.fragmented) {
+        throw new Error("Este M4A viene en un formato de streaming (fragmentado) que no se puede preparar. Usa un MP3.");
+      }
       if (song.codec && song.codec !== "mp4a") {
         throw new Error("Este M4A no está en AAC (por ejemplo, es Apple Lossless) y no se oiría en todos los celulares. Usa un MP3.");
       }

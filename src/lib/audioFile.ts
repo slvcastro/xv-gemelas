@@ -20,6 +20,11 @@ export type SongFile = {
   seconds: number | null;
   /** M4A only: the audio codec ("mp4a" is AAC; "alac" is Apple Lossless, which many phones can't play). */
   codec: string | null;
+  /**
+   * M4A in the streaming layout (fragments): its length and its chapters live in the fragments, which
+   * are not read here, so the panel asks for an MP3 instead.
+   */
+  fragmented: boolean;
 };
 
 const isText = (b: Uint8Array, at: number, text: string) => {
@@ -224,12 +229,15 @@ function readMp4(source: Uint8Array): SongFile {
   const isLabels = (type: string) => type === "udta" || type === "meta";
   let seconds: number | null = null;
   let codec: string | null = null;
+  let fragmented = false;
 
   eachBox(b, 0, b.length, (type, box) => {
     if (isLabels(type)) blank(b, box);
+    if (type === "moof") fragmented = true;
     if (type !== "moov") return;
     eachBox(b, box[0] + box[1], box[2], (t, inner) => {
       if (isLabels(t)) blank(b, inner);
+      if (t === "mvex") fragmented = true;
       if (t === "mvhd") {
         const p = inner[0] + inner[1];
         const view = new DataView(b.buffer, b.byteOffset, b.byteLength);
@@ -237,7 +245,7 @@ function readMp4(source: Uint8Array): SongFile {
           b[p] === 1
             ? [view.getUint32(p + 20), view.getUint32(p + 24) * 2 ** 32 + view.getUint32(p + 28)]
             : [view.getUint32(p + 12), view.getUint32(p + 16)];
-        if (scale) seconds = length / scale;
+        if (scale && length) seconds = length / scale;
       }
       if (t !== "trak") return;
       const hdlr = descend(b, inner, "mdia", "hdlr");
@@ -255,7 +263,7 @@ function readMp4(source: Uint8Array): SongFile {
       }
     });
   });
-  return { format: "m4a", bytes: b, seconds, codec };
+  return { format: "m4a", bytes: b, seconds, codec, fragmented };
 }
 
 // ---------- Entry point ----------
@@ -284,7 +292,13 @@ export function readSongFile(raw: Uint8Array): SongFile | null {
     }
     if (!format) return null;
     const bytes = stripMpeg(raw);
-    return { format, bytes, seconds: framesSeconds(bytes, format === "aac" ? adtsFrame : mpegFrame), codec: null };
+    return {
+      format,
+      bytes,
+      seconds: framesSeconds(bytes, format === "aac" ? adtsFrame : mpegFrame),
+      codec: null,
+      fragmented: false,
+    };
   } catch {
     return null; // a damaged file
   }
