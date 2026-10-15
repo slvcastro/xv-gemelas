@@ -1,26 +1,30 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CircleHelp, DoorOpen, Image as ImageIcon, LogOut, Users, X } from "lucide-react";
+import { CircleHelp, DoorOpen, Image as ImageIcon, LogOut, Music, Users, X } from "lucide-react";
 import { logoutAdmin } from "@/app/actions/adminAuth";
 import { FamiliesPanel } from "./FamiliesPanel";
 import { HowItWorksSteps } from "./HowItWorks";
+import { MusicPanel } from "./MusicPanel";
 import { PhotosPanel } from "./PhotosPanel";
 import { ReceptionPanel } from "./ReceptionPanel";
 import { Modal, btnPrimary } from "./ui";
-import type { AdminFamily, AdminMedia } from "./types";
+import type { AdminFamily, AdminMedia, AdminSong } from "./types";
 
-export type AdminTab = "invitados" | "fotos" | "recepcion";
+export type AdminTab = "invitados" | "fotos" | "musica" | "recepcion";
 
 const TABS: { id: AdminTab; label: string; icon: typeof Users }[] = [
   { id: "invitados", label: "Invitados", icon: Users },
   { id: "fotos", label: "Fotografías", icon: ImageIcon },
+  { id: "musica", label: "Música", icon: Music },
   { id: "recepcion", label: "Recepción", icon: DoorOpen },
 ];
 
 export const AdminDashboard = ({
   families,
   media,
+  songs,
+  showSongTitle,
   siteUrl,
   deadline,
   initialTab,
@@ -28,6 +32,8 @@ export const AdminDashboard = ({
 }: {
   families: AdminFamily[];
   media: AdminMedia[];
+  songs: AdminSong[];
+  showSongTitle: boolean;
   siteUrl: string;
   /** ISO date of the RSVP deadline, or null. */
   deadline: string | null;
@@ -104,6 +110,7 @@ export const AdminDashboard = ({
       <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         {activeTab === "invitados" && <FamiliesPanel families={families} siteUrl={siteUrl} deadline={deadline} notify={notify} />}
         {activeTab === "fotos" && <PhotosPanel media={media} notify={notify} />}
+        {activeTab === "musica" && <MusicPanel songs={songs} showTitle={showSongTitle} notify={notify} />}
         {activeTab === "recepcion" && <ReceptionPanel families={families} notify={notify} />}
       </main>
 

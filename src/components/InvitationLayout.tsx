@@ -14,13 +14,14 @@ import { InView } from "@/components/InView";
 import { TapSparkles } from "@/components/TapSparkles";
 import { MusicButton } from "@/components/MusicButton";
 import type { InvitationMedia } from "@/lib/media";
+import { getPublicMusic } from "@/lib/songs";
 
 /**
  * Full invitation, in order: envelope → cover → `welcome` (personal greeting of the family, optional) →
  * countdown → message → family → where/when → itinerary → gifts → dress code → gallery → `children`
  * (the RSVP form or, on the general page, how to confirm).
  */
-export function InvitationLayout({
+export async function InvitationLayout({
   media,
   guestName,
   welcome,
@@ -31,11 +32,12 @@ export function InvitationLayout({
   welcome?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const music = await getPublicMusic();
   return (
     <main className="flex min-h-screen flex-col items-center overflow-hidden bg-navy">
       <NameDefs />
       <TapSparkles />
-      <MusicButton />
+      {music.tracks.length > 0 && <MusicButton music={music} />}
       <SplashScreen
         guestName={guestName}
         // With a guest, the names are written first (title); without one, on the envelope once it lands.
