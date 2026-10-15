@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { ArrowDown, ArrowUp, Music, Pause, Play, Plus, Trash2 } from "lucide-react";
 import { addSong, deleteSong, discardSongUpload, moveSong, setShowSongTitle, updateSong } from "@/app/actions/songs";
-import { SongAnalysisError, analyseSong } from "@/lib/audioAnalysis";
-import { type AudioFormat, stripTags } from "@/lib/audioTags";
+import { MAX_SONG_SECONDS, SongAnalysisError, analyseSong } from "@/lib/audioAnalysis";
+import { type AudioFormat, readSongFile } from "@/lib/audioFile";
+import { MUSIC } from "@/lib/music";
 import { ConfirmDialog, btnPrimary, btnSmall, inputCls, labelCls } from "./ui";
 import type { AdminSong } from "./types";
 
@@ -14,15 +15,10 @@ const ACCEPT = ".mp3,.m4a,.aac,audio/mpeg,audio/mp4,audio/x-m4a,audio/aac";
 const MAX_MB = 20;
 /** Shown when an action could not reach the server (no signal, or the session ended). */
 const OFFLINE = "No se pudo conectar. Revisa tu internet (o vuelve a iniciar sesión) e intenta de nuevo.";
+const NOT_AUDIO = "Usa un archivo MP3 o M4A: son los que se oyen en todos los celulares.";
 
-const formatOf = (file: File): AudioFormat | null => {
-  const ext = file.name.split(".").pop()?.toLowerCase();
-  if (ext === "mp3" || ext === "m4a" || ext === "aac") return ext;
-  if (/mpeg|mp3/.test(file.type)) return "mp3";
-  if (/mp4|m4a/.test(file.type)) return "m4a";
-  if (/aac/.test(file.type)) return "aac";
-  return null;
-};
+/** First filter, by name or type (the file's bytes decide its real format later). */
+const looksLikeSong = (file: File) => /\.(mp3|m4a|aac)$/i.test(file.name) || /audio\/(mpeg|mp3|mp4|x-m4a|aac)/.test(file.type);
 
 const mmss = (s: number | null) => {
   if (s == null) return "";
@@ -179,7 +175,15 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
   const [show, setShow] = useState(showTitle);
   const [pending, start] = useTransition();
 
-  useEffect(() => () => previewRef.current?.pause(), []);
+  const previewOut = useRef<{ ctx: AudioContext; gain: GainNode; source?: MediaElementAudioSourceNode } | null>(null);
+
+  useEffect(
+    () => () => {
+      previewRef.current?.pause();
+      void previewOut.current?.ctx.close();
+    },
+    []
+  );
 
   const preview = (song: AdminSong) => {
     previewRef.current?.pause();
@@ -191,7 +195,25 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
     a.crossOrigin = "anonymous"; // loaded the same way guests load it
     a.src = song.url;
     a.currentTime = song.startAt;
-    a.volume = Math.min(1, 0.75 * song.gain);
+    // Through Web Audio, as in the invitation, so a quiet song sounds as loud as guests will hear it.
+    const level = MUSIC.volume * song.gain;
+    try {
+      if (!previewOut.current) {
+        const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const ctx = new AC();
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        previewOut.current = { ctx, gain };
+      }
+      const out = previewOut.current;
+      out.source?.disconnect();
+      out.source = out.ctx.createMediaElementSource(a);
+      out.source.connect(out.gain);
+      out.gain.gain.value = level;
+      void out.ctx.resume();
+    } catch {
+      a.volume = Math.min(1, level);
+    }
     a.onended = () => setPreviewId(null);
     void a.play().catch(() => notify("No se pudo reproducir la canción en este navegador."));
     previewRef.current = a;
@@ -199,9 +221,8 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
   };
 
   const upload = async (picked: File) => {
-    const format = formatOf(picked);
-    if (!format) {
-      notify("Usa un archivo MP3 o M4A: son los que se oyen en todos los celulares.");
+    if (!looksLikeSong(picked)) {
+      notify(NOT_AUDIO);
       return;
     }
     if (picked.size > MAX_MB * 1024 * 1024) {
@@ -211,9 +232,18 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
     let uploaded: string | null = null;
     try {
       setProgress("Preparando la canción…");
-      // The file's hidden labels (song name, artist, cover) are removed, so it can't reveal the song either.
-      const bytes = stripTags(new Uint8Array(await picked.arrayBuffer()), format);
-      const file = new File([bytes as Uint8Array<ArrayBuffer>], `cancion.${format}`, { type: FORMATS[format] });
+      // Its real format comes from its bytes, and its hidden labels (song name, artist, cover) are removed,
+      // so the file can't reveal the song either.
+      const song = readSongFile(new Uint8Array(await picked.arrayBuffer()));
+      if (!song) throw new Error(NOT_AUDIO);
+      if (song.codec && song.codec !== "mp4a") {
+        throw new Error("Este M4A no está en AAC (por ejemplo, es Apple Lossless) y no se oiría en todos los celulares. Usa un MP3.");
+      }
+      if (song.seconds && song.seconds > MAX_SONG_SECONDS) {
+        throw new Error(`La canción dura ${mmss(song.seconds)}; el máximo es 12:00. Usa una versión más corta.`);
+      }
+      const { format } = song;
+      const file = new File([song.bytes as Uint8Array<ArrayBuffer>], `cancion.${format}`, { type: FORMATS[format] });
       setProgress("Analizando la canción…");
       const info = await analyseSong(file).catch((e) => {
         throw e instanceof SongAnalysisError ? e : new Error("Este archivo no se pudo leer como audio. Prueba con un MP3.");

@@ -17,8 +17,11 @@ export type SongAnalysis = {
   gain: number;
 };
 
-/** Longest song accepted: decoding a longer one could use more memory than a phone allows. */
-export const MAX_SONG_MINUTES = 12;
+/**
+ * Longest song accepted (with a few seconds of grace): decoding a longer one could use more memory than
+ * a phone allows. The panel checks it from the file's headers before decoding; this is the backstop.
+ */
+export const MAX_SONG_SECONDS = 12 * 60 + 5;
 
 /** A reason the admin should read as is (the panel shows its message). */
 export class SongAnalysisError extends Error {}
@@ -29,26 +32,6 @@ const SAMPLE_RATE = 44100;
 type OfflineCtor = typeof OfflineAudioContext;
 const Offline = () =>
   (window.OfflineAudioContext ?? (window as unknown as { webkitOfflineAudioContext?: OfflineCtor }).webkitOfflineAudioContext) as OfflineCtor;
-
-/** Length from the file's own header, without decoding it (null if the browser can't tell). */
-function quickDuration(file: File): Promise<number | null> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const audio = new Audio();
-    const done = (value: number | null) => {
-      clearTimeout(timer);
-      audio.onloadedmetadata = audio.onerror = null;
-      audio.removeAttribute("src");
-      URL.revokeObjectURL(url);
-      resolve(value);
-    };
-    const timer = setTimeout(() => done(null), 8000);
-    audio.preload = "metadata";
-    audio.onloadedmetadata = () => done(Number.isFinite(audio.duration) ? audio.duration : null);
-    audio.onerror = () => done(null);
-    audio.src = url;
-  });
-}
 
 /**
  * K-weighting (BS.1770 pre-filter shelf + RLB high-pass), applied in place. Coefficients for any sample
@@ -86,23 +69,18 @@ function kWeightInPlace(x: Float32Array, rate: number) {
     x[i] = r0 - 2 * r1 + r2;
     r2 = r1;
     r1 = r0;
+    // In digital silence the state would linger at tiny "denormal" values, which are very slow to compute.
+    if (i % 4096 === 0 && Math.abs(p1) + Math.abs(p2) + Math.abs(r1) + Math.abs(r2) < 1e-30) p1 = p2 = r1 = r2 = 0;
   }
 }
 
 export async function analyseSong(file: File): Promise<SongAnalysis> {
-  const declared = await quickDuration(file);
-  if (declared && declared > MAX_SONG_MINUTES * 60) {
-    throw new SongAnalysisError(
-      `La canción dura ${Math.round(declared / 60)} minutos; el máximo es ${MAX_SONG_MINUTES}. Usa una versión más corta.`
-    );
-  }
-
   const Ctx = Offline();
   const decoder = new Ctx(1, 1, SAMPLE_RATE);
   const buffer = await decoder.decodeAudioData(await file.arrayBuffer());
   const { sampleRate, length, numberOfChannels: channels, duration } = buffer;
-  if (duration > MAX_SONG_MINUTES * 60 + 5) {
-    throw new SongAnalysisError(`La canción dura más de ${MAX_SONG_MINUTES} minutos. Usa una versión más corta.`);
+  if (duration > MAX_SONG_SECONDS) {
+    throw new SongAnalysisError("La canción dura más de 12 minutos. Usa una versión más corta.");
   }
   const data = Array.from({ length: channels }, (_, c) => buffer.getChannelData(c));
 

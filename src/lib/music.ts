@@ -22,7 +22,8 @@ export type PublicMusic = { tracks: PublicTrack[]; showTitle: boolean };
 /** Type hints from the file name, so the browser can choose without downloading anything. */
 export function audioType(url: string): string | undefined {
   const ext = url.split(/[?#]/)[0].split(".").pop()?.toLowerCase();
-  if (ext === "m4a" || ext === "mp4" || ext === "aac") return 'audio/mp4; codecs="mp4a.40.2"';
+  if (ext === "m4a" || ext === "mp4") return 'audio/mp4; codecs="mp4a.40.2"';
+  if (ext === "aac") return "audio/aac";
   if (ext === "mp3") return "audio/mpeg";
   if (ext === "webm") return 'audio/webm; codecs="opus"';
   if (ext === "ogg" || ext === "oga") return "audio/ogg";
