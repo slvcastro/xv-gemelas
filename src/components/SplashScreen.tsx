@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DecoFrame, NightBackdrop, Ornament, Sparkle, fxDelay } from "@/components/decor";
 import { InkWords } from "@/components/ink";
+import { startMusic } from "@/lib/musicPlayer";
 
 type Phase = "sealed" | "opening" | "done";
 
@@ -134,6 +135,8 @@ export const SplashScreen = ({
       tapFinishedIntro.current = false;
       return;
     }
+    // The music starts with this tap (browsers only allow sound after a gesture) and rises slowly.
+    startMusic();
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setPhase("done");
       return;

@@ -12,6 +12,7 @@ import { Ornament, fxDelay } from "@/components/decor";
 import { NameDefs, SignedName, SplitWaxSeal } from "@/components/emblem";
 import { InView } from "@/components/InView";
 import { TapSparkles } from "@/components/TapSparkles";
+import { MusicButton } from "@/components/MusicButton";
 import type { InvitationMedia } from "@/lib/media";
 
 /**
@@ -34,6 +35,7 @@ export function InvitationLayout({
     <main className="flex min-h-screen flex-col items-center overflow-hidden bg-navy">
       <NameDefs />
       <TapSparkles />
+      <MusicButton />
       <SplashScreen
         guestName={guestName}
         // With a guest, the names are written first (title); without one, on the envelope once it lands.
