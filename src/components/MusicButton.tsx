@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Music, SkipForward } from "lucide-react";
-import { PLAYLIST } from "@/lib/music";
-import { getServerState, getState, nextTrack, subscribe, toggleMusic } from "@/lib/musicPlayer";
+import type { PublicMusic } from "@/lib/music";
+import { getServerState, getState, nextTrack, setPlaylist, subscribe, toggleMusic } from "@/lib/musicPlayer";
 
 /** How long the song title stays visible next to the button. */
 const ANNOUNCE_MS = 6000;
@@ -11,11 +11,14 @@ const ANNOUNCE_MS = 6000;
 /**
  * Floating music button (bottom right), shown once the envelope has been opened. While the music plays
  * it shows little golden bars dancing; a tap pauses with a soft fade (and the choice is remembered),
- * another tap brings the music back. When a song starts its title appears next to the button for a few
- * seconds. With more than one song, a second button skips to the next one.
+ * another tap brings the music back. When the music starts a hint appears next to the button for a few
+ * seconds; it only names the song when the admin allowed it ("Música" in the panel). With more than one
+ * song, a second button skips to the next one.
  */
-export function MusicButton() {
+export function MusicButton({ music }: { music: PublicMusic }) {
   const s = useSyncExternalStore(subscribe, getState, getServerState);
+  // Hand the songs to the player before the guest can open the envelope.
+  useEffect(() => setPlaylist(music.tracks), [music]);
   // The title shows for each new announcement until its time is up.
   const [shownUntil, setShownUntil] = useState(0);
   const showTitle = s.announce !== 0 && shownUntil !== s.announce;
@@ -39,21 +42,26 @@ export function MusicButton() {
         }`}
         aria-hidden="true"
       >
-        {on ? (
+        {!on ? (
+          "Toca para oír la música"
+        ) : s.track?.title ? (
           <>
-            <span className="text-gold">♪</span> {s.track.title} · <span className="text-blue-mist">{s.track.artist}</span>
+            <span className="text-gold">♪</span> {s.track.title}
+            {s.track.artist && <span className="text-blue-mist"> · {s.track.artist}</span>}
           </>
         ) : (
-          "Toca para oír la música"
+          <>
+            <span className="text-gold">♪</span> Toca aquí para pausar la música
+          </>
         )}
       </p>
 
       {/* For screen readers: the title is announced when it appears. */}
       <span className="sr-only" aria-live="polite">
-        {showTitle && on ? `${s.track.title}, ${s.track.artist}` : ""}
+        {showTitle && on && s.track?.title ? [s.track.title, s.track.artist].filter(Boolean).join(", ") : ""}
       </span>
 
-      {PLAYLIST.length > 1 && on && (
+      {music.tracks.length > 1 && on && (
         <button
           type="button"
           onClick={() => nextTrack()}

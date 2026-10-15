@@ -7,14 +7,16 @@
  * code, so fades would be impossible. Fades follow a decibel curve, which the ear hears as an even rise.
  * Polite behaviour: the guest's pause is remembered on this device; the music pauses by itself when the
  * page is hidden (another app, locked phone) and comes back with a fade when the guest returns.
+ * The songs come from the admin panel (setPlaylist); each one carries its own volume correction and
+ * the seconds where its music starts and ends, so silences are skipped.
  */
-import { MUSIC, PLAYLIST, type Track } from "@/lib/music";
+import { MUSIC, type PublicTrack } from "@/lib/music";
 
 export type MusicStatus = "idle" | "loading" | "playing" | "paused";
 export type MusicState = {
   status: MusicStatus;
   index: number;
-  track: Track;
+  track: PublicTrack | null;
   /** Set when the title should be shown for a moment (start, next song, paused by preference). */
   announce: number;
 };
@@ -22,7 +24,16 @@ export type MusicState = {
 const PREF_KEY = "kk-music";
 const SILENCE_DB = -45;
 
-const INITIAL: MusicState = { status: "idle", index: 0, track: PLAYLIST[0], announce: 0 };
+const INITIAL: MusicState = { status: "idle", index: 0, track: null, announce: 0 };
+let playlist: PublicTrack[] = [];
+
+/** Songs for this page (from the server). Only taken before the music starts. */
+export function setPlaylist(tracks: PublicTrack[]) {
+  if (state.status !== "idle") return;
+  playlist = tracks.filter((t) => t.sources.length > 0);
+  state = { ...state, track: playlist[0] ?? null };
+}
+
 let state = INITIAL;
 const listeners = new Set<() => void>();
 function update(patch: Partial<MusicState>) {
@@ -65,6 +76,16 @@ const writePref = (value: "on" | "off") => {
   }
 };
 
+/**
+ * Volume of the current song: the background level times its own correction. Through Web Audio it may
+ * go above 1 (a quiet song raised to the common level; the analysis keeps its loudest moment under full
+ * scale); an <audio> element's own volume stops at 1.
+ */
+const songLevel = () => {
+  const level = MUSIC.volume * (state.track?.gain ?? 1);
+  return gain ? level : Math.min(1, level);
+};
+
 const toDb = (g: number) => (g > 0.0001 ? 20 * Math.log10(g) : SILENCE_DB);
 const fromDb = (db: number) => 10 ** (db / 20);
 const currentLevel = () => (gain ? gain.gain.value : (audio?.volume ?? 0));
@@ -96,22 +117,25 @@ function fadeTo(target: number, seconds: number) {
   }, (seconds * 1000) / steps);
 }
 
-function sourceFor(track: Track) {
-  return track.sources.find((s) => audio?.canPlayType(s.type)) ?? track.sources[track.sources.length - 1];
+/** File for this browser; the start offset rides along as a media fragment (#t=), so silence is skipped. */
+function srcFor(track: PublicTrack) {
+  const source = track.sources.find((s) => !s.type || audio?.canPlayType(s.type)) ?? track.sources[track.sources.length - 1];
+  return track.startAt > 0 ? `${source.src}#t=${track.startAt.toFixed(2)}` : source.src;
 }
 
-function setMediaSession(track: Track) {
-  if (!("mediaSession" in navigator)) return;
+function setMediaSession(track: PublicTrack | null) {
+  if (!("mediaSession" in navigator) || !track) return;
   try {
+    // Without permission to show the song's name, the lock screen only says it is the invitation's music.
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: track.title,
-      artist: track.artist,
+      title: track.title ?? "Música de la invitación",
+      artist: track.title ? (track.artist ?? "") : "XV años de Kelly & Kyara",
       album: "XV años de Kelly & Kyara",
       artwork: [{ src: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
     });
     navigator.mediaSession.setActionHandler("play", () => toggleMusic(true));
     navigator.mediaSession.setActionHandler("pause", () => toggleMusic(false));
-    navigator.mediaSession.setActionHandler("nexttrack", PLAYLIST.length > 1 ? () => nextTrack() : null);
+    navigator.mediaSession.setActionHandler("nexttrack", playlist.length > 1 ? () => nextTrack() : null);
   } catch {
     /* optional */
   }
@@ -119,12 +143,12 @@ function setMediaSession(track: Track) {
 
 function load(index: number) {
   if (!audio) return;
-  const track = PLAYLIST[index];
+  const track = playlist[index];
   endingFade = false;
   if (index === state.index && audio.getAttribute("src")) {
-    audio.currentTime = 0;
+    audio.currentTime = track.startAt;
   } else {
-    audio.src = sourceFor(track).src;
+    audio.src = srcFor(track);
   }
   setMediaSession(track);
   update({ index, track });
@@ -133,6 +157,9 @@ function load(index: number) {
 function setup() {
   if (audio) return;
   audio = new Audio();
+  // Songs added from the panel live on Vercel Blob, another origin: without this, Web Audio would play
+  // them as silence. Files served by the site itself are not affected.
+  audio.crossOrigin = "anonymous";
   audio.preload = "auto";
   audio.setAttribute("playsinline", "");
   audio.addEventListener("timeupdate", onTime);
@@ -154,7 +181,7 @@ function setup() {
     }
   }
   if (!gain) audio.volume = 0;
-  setMediaSession(PLAYLIST[0]);
+  setMediaSession(state.track);
 
   // iPhone: play like music even with the silent switch on (Safari 16.4+), as a video would.
   const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
@@ -176,7 +203,7 @@ function play(fadeSeconds: number, announce: boolean) {
   // A resume in the last seconds must schedule the fade-out again.
   endingFade = false;
   // The song is only downloaded the first time it is played (a guest who keeps it paused never loads it).
-  if (!audio.getAttribute("src")) audio.src = sourceFor(state.track).src;
+  if (!audio.getAttribute("src") && state.track) audio.src = srcFor(state.track);
   void ctx?.resume?.();
   update({ status: "loading" });
   audio
@@ -184,7 +211,7 @@ function play(fadeSeconds: number, announce: boolean) {
     .then(() => {
       if (seq !== playSeq) return; // paused or skipped while it was loading
       update({ status: "playing", ...(announce ? { announce: Date.now() } : {}) });
-      fadeTo(MUSIC.volume, fadeSeconds);
+      fadeTo(songLevel(), fadeSeconds);
     })
     .catch(() => {
       if (seq === playSeq) update({ status: "paused" });
@@ -201,9 +228,16 @@ function pauseWithFade(seconds: number) {
 }
 
 function onTime() {
-  if (!audio || endingFade || state.status !== "playing") return;
-  const left = audio.duration - audio.currentTime;
-  if (Number.isFinite(left) && left <= MUSIC.fadeOutEnd) {
+  if (!audio || state.status !== "playing") return;
+  // Where the music ends: the trailing silence (if any) is never played.
+  const end = state.track?.endAt ?? audio.duration;
+  const left = end - audio.currentTime;
+  if (!Number.isFinite(left)) return;
+  if (state.track?.endAt != null && left <= 0.05) {
+    onEnded();
+    return;
+  }
+  if (!endingFade && left <= MUSIC.fadeOutEnd) {
     endingFade = true;
     fadeTo(0, Math.max(0.5, left - 0.15));
   }
@@ -211,8 +245,8 @@ function onTime() {
 
 function onEnded() {
   if (state.status !== "playing") return;
-  load((state.index + 1) % PLAYLIST.length);
-  play(MUSIC.fadeInNext, PLAYLIST.length > 1);
+  load((state.index + 1) % playlist.length);
+  play(MUSIC.fadeInNext, playlist.length > 1);
 }
 
 /**
@@ -233,7 +267,7 @@ function onPlaying() {
   if (!systemPaused || state.status !== "paused") return;
   systemPaused = false;
   update({ status: "playing" });
-  fadeTo(MUSIC.volume, MUSIC.resumeFade);
+  fadeTo(songLevel(), MUSIC.resumeFade);
 }
 
 function onVisibility() {
@@ -253,7 +287,7 @@ function onVisibility() {
  * long fade-in, unless the guest paused it on an earlier visit: then the button appears, paused.
  */
 export function startMusic() {
-  if (state.status !== "idle" || PLAYLIST.length === 0 || typeof window === "undefined") return;
+  if (state.status !== "idle" || playlist.length === 0 || typeof window === "undefined") return;
   setup();
   if (readPref() === "off") {
     update({ status: "paused", announce: Date.now() });
@@ -264,6 +298,7 @@ export function startMusic() {
 
 /** Play / pause from the button (or the lock screen); `on` forces a state. The choice is remembered. */
 export function toggleMusic(on?: boolean) {
+  if (playlist.length === 0) return;
   if (!audio) setup();
   const playing = state.status === "playing" || state.status === "loading";
   const want = on ?? !playing;
@@ -279,12 +314,12 @@ export function toggleMusic(on?: boolean) {
 
 /** Next song (only offered when the playlist has more than one). */
 export function nextTrack() {
-  if (!audio || PLAYLIST.length < 2) return;
+  if (!audio || playlist.length < 2) return;
   playSeq++;
   fadeTo(0, 0.8);
   clearTimeout(pauseTimer);
   pauseTimer = setTimeout(() => {
-    load((state.index + 1) % PLAYLIST.length);
+    load((state.index + 1) % playlist.length);
     play(MUSIC.fadeInNext, true);
   }, 850);
 }

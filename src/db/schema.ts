@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, boolean, integer, uuid, numeric, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, boolean, integer, uuid, numeric, pgEnum, real } from "drizzle-orm/pg-core";
 
 export const invitationStatusEnum = pgEnum('invitation_status', ['pending', 'confirmed', 'declined']);
 export const mediaUsageEnum = pgEnum('media_usage', ['cover_both', 'portrait_kelly', 'portrait_kyara', 'gallery', 'share_preview', 'none']);
@@ -19,6 +19,34 @@ export const settings = pgTable("settings", {
   giftsMode: text("gifts_mode"),
   musicUrl: text("music_url"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  /** Background music: show guests the song's name (off: they only see the music button). */
+  showSongTitle: boolean("show_song_title").notNull().default(false),
+});
+
+/**
+ * Background music of the invitation, managed only from the admin panel ("Música"). Songs play in
+ * `sortOrder`, one after the other, and the list starts over. `gain`, `startAt` and `endAt` are worked
+ * out in the admin's browser when a song is uploaded, so every song plays at the same level and without
+ * silences at its ends. The name is only sent to guests when settings.showSongTitle is on.
+ */
+export const songs = pgTable("songs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  artist: text("artist"),
+  /** Main file (MP3 or AAC). */
+  url: text("url").notNull(),
+  /** Optional second format for browsers that can't play the first (e.g. Opus). */
+  altUrl: text("alt_url"),
+  /** Volume correction, 1 = as recorded. */
+  gain: real("gain").notNull().default(1),
+  /** Seconds skipped at the start (silence). */
+  startAt: real("start_at").notNull().default(0),
+  /** Second where the music ends (trailing silence cut); null = the end of the file. */
+  endAt: real("end_at"),
+  duration: real("duration"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
 export const media = pgTable("media", {

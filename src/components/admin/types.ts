@@ -59,3 +59,16 @@ export const STATUS_LABELS: Record<FamilyStatus, string> = {
   confirmed: "Confirmó",
   declined: "No asistirán",
 };
+
+/** A background-music song as the admin panel sees it ("Música"). */
+export type AdminSong = {
+  id: string;
+  title: string;
+  artist: string | null;
+  url: string;
+  gain: number;
+  startAt: number;
+  endAt: number | null;
+  duration: number | null;
+  isActive: boolean;
+};

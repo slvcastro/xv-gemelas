@@ -3,9 +3,13 @@ import { NextResponse } from "next/server";
 import { checkAdmin } from "@/app/actions/adminAuth";
 
 /**
- * Issues short-lived tokens so the admin's browser can upload photos straight to
- * Vercel Blob (no file-size limits from server actions / serverless bodies).
+ * Issues short-lived tokens so the admin's browser can upload photos (and background music, under
+ * "musica/") straight to Vercel Blob (no file-size limits from server actions / serverless bodies).
  */
+
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
+// MP3 / AAC only: the formats every phone plays (iPhones don't play every OGG or WebM).
+const AUDIO_TYPES = ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/x-m4a", "audio/aac"];
 export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
 
@@ -13,14 +17,15 @@ export async function POST(request: Request): Promise<NextResponse> {
     const json = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async () => {
+      onBeforeGenerateToken: async (pathname) => {
         if (!(await checkAdmin())) {
           throw new Error("No autorizado");
         }
+        const music = pathname.startsWith("musica/");
         return {
           // HEIC is excluded: browsers cannot display it (iOS converts to JPEG when it is not accepted).
-          allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "image/avif"],
-          maximumSizeInBytes: 25 * 1024 * 1024,
+          allowedContentTypes: music ? AUDIO_TYPES : IMAGE_TYPES,
+          maximumSizeInBytes: (music ? 20 : 25) * 1024 * 1024,
           addRandomSuffix: true,
         };
       },

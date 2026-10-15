@@ -1,36 +1,39 @@
 /**
- * Background music of the invitation. Pure data: the player lives in src/lib/musicPlayer.ts and the
- * floating button in src/components/MusicButton.tsx.
- *
- * To add another song: put its files in public/musica/ (an AAC .m4a and an Opus .webm, prepared like
- * the first one: silence trimmed and loudness at about -16 LUFS so every song plays at the same level)
- * and add an entry below. The songs play in this order and the list starts over after the last one.
- *
- * Keep the AAC .m4a FIRST: Safari (every iPhone browser) plays WebM with an engine that bypasses Web
- * Audio, so the fades and the volume would be ignored. The .webm is only for browsers without AAC.
+ * Background music of the invitation: shared types and timings. The songs themselves live in the
+ * database (table `songs`) and are managed only from the admin panel ("Música"); the player is
+ * src/lib/musicPlayer.ts and the floating button src/components/MusicButton.tsx.
  */
 
-export type Track = {
-  title: string;
-  artist: string;
-  /** Same song in several formats; the browser plays the first one it supports (AAC first, see above). */
-  sources: { src: string; type: string }[];
+/** What a guest's browser receives for each song. `title`/`artist` only when the admin shows them. */
+export type PublicTrack = {
+  /** Same song in one or two formats; the browser plays the first one it supports. */
+  sources: { src: string; type?: string }[];
+  /** Volume correction worked out on upload (1 = as recorded). */
+  gain: number;
+  /** Seconds of silence skipped at the start, and where the music ends (null = end of the file). */
+  startAt: number;
+  endAt: number | null;
+  title?: string;
+  artist?: string;
 };
 
-export const PLAYLIST: Track[] = [
-  {
-    title: "Tattoo",
-    artist: "Brendan Ross (sax)",
-    sources: [
-      { src: "/musica/tattoo-sax.m4a", type: 'audio/mp4; codecs="mp4a.40.2"' },
-      { src: "/musica/tattoo-sax.webm", type: 'audio/webm; codecs="opus"' },
-    ],
-  },
-];
+export type PublicMusic = { tracks: PublicTrack[]; showTitle: boolean };
+
+/** Type hints from the file name, so the browser can choose without downloading anything. */
+export function audioType(url: string): string | undefined {
+  const ext = url.split(/[?#]/)[0].split(".").pop()?.toLowerCase();
+  if (ext === "m4a" || ext === "mp4") return 'audio/mp4; codecs="mp4a.40.2"';
+  if (ext === "aac") return "audio/aac";
+  if (ext === "mp3") return "audio/mpeg";
+  if (ext === "webm") return 'audio/webm; codecs="opus"';
+  if (ext === "ogg" || ext === "oga") return "audio/ogg";
+  if (ext === "wav") return "audio/wav";
+  return undefined;
+}
 
 /** Times in seconds. */
 export const MUSIC = {
-  /** Playing volume (0–1); the files are already levelled, this keeps the music in the background. */
+  /** Playing volume (0–1), before each song's own correction: the music stays in the background. */
   volume: 0.75,
   /** When the envelope opens the music rises slowly from silence. */
   fadeInFirst: 12,
@@ -42,3 +45,6 @@ export const MUSIC = {
   pauseFade: 1.2,
   resumeFade: 2.5,
 };
+
+/** Loudness every song is levelled to when it is uploaded (LUFS, approximately). */
+export const TARGET_LOUDNESS = -16;

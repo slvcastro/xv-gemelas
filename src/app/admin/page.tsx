@@ -3,16 +3,16 @@ import { asc, desc } from "drizzle-orm";
 import { checkAdmin } from "@/app/actions/adminAuth";
 import { AdminLogin } from "@/components/admin/AdminLogin";
 import { AdminDashboard, type AdminTab } from "@/components/admin/AdminDashboard";
-import type { AdminFamily, AdminMedia } from "@/components/admin/types";
+import type { AdminFamily, AdminMedia, AdminSong } from "@/components/admin/types";
 import { db } from "@/db";
-import { invitations, guests, media } from "@/db/schema";
+import { invitations, guests, media, settings, songs } from "@/db/schema";
 import { formatDateTime, formatTime } from "@/lib/format";
 import { getDeadline, memberOrder } from "@/lib/invitations";
 import { getSiteUrl } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Panel · Kelly & Kyara" };
 
-const TABS: AdminTab[] = ["invitados", "fotos", "recepcion"];
+const TABS: AdminTab[] = ["invitados", "fotos", "musica", "recepcion"];
 
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   if (!(await checkAdmin())) {
@@ -20,12 +20,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   }
 
   const { tab } = await searchParams;
-  const [familyRows, memberRows, mediaRows, deadline, siteUrl] = await Promise.all([
+  const [familyRows, memberRows, mediaRows, deadline, siteUrl, songRows, [setting]] = await Promise.all([
     db.select().from(invitations).orderBy(desc(invitations.createdAt), asc(invitations.name)),
     db.select().from(guests).orderBy(...memberOrder),
     db.select().from(media).orderBy(desc(media.createdAt)),
     getDeadline(),
     getSiteUrl(),
+    db.select().from(songs).orderBy(asc(songs.sortOrder), asc(songs.createdAt)),
+    db.select({ showSongTitle: settings.showSongTitle }).from(settings).orderBy(asc(settings.id)).limit(1),
   ]);
 
   const membersByFamily = new Map<string, typeof memberRows>();
@@ -73,10 +75,24 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     createdAt: formatDateTime(m.createdAt),
   }));
 
+  const adminSongs: AdminSong[] = songRows.map((s) => ({
+    id: s.id,
+    title: s.title,
+    artist: s.artist,
+    url: s.url,
+    gain: s.gain,
+    startAt: s.startAt,
+    endAt: s.endAt,
+    duration: s.duration,
+    isActive: s.isActive,
+  }));
+
   return (
     <AdminDashboard
       families={families}
       media={adminMedia}
+      songs={adminSongs}
+      showSongTitle={setting?.showSongTitle ?? false}
       siteUrl={siteUrl}
       deadline={deadline?.toISOString() ?? null}
       initialTab={TABS.includes(tab as AdminTab) ? (tab as AdminTab) : "invitados"}
