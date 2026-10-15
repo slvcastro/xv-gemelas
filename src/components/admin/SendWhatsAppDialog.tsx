@@ -7,12 +7,12 @@ import { Modal, btnSecondary, copyText, inputCls, labelCls } from "./ui";
 
 type Kind = "invitation" | "reminder";
 const KINDS: [Kind, string][] = [
-  ["invitation", "Invitación completa"],
+  ["invitation", "Invitación"],
   ["reminder", "Recordatorio"],
 ];
 
 /**
- * Shows the proposed WhatsApp message before sending, so the admin can pick the full invitation or a
+ * Shows the proposed WhatsApp message before sending, so the admin can pick the invitation or a
  * reminder, read and tweak it, then open WhatsApp with it (app on phones, WhatsApp Web on computers)
  * or copy it to paste by hand. Rendered only after a click, so reading `navigator` while rendering is safe.
  */

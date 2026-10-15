@@ -42,15 +42,15 @@ export const DressCodeSection = () => {
               {RESERVED_COLORS.map((c, i) => (
                 <span
                   key={i}
-                  className="relative h-8 w-8 rounded-full border border-gold/40"
+                  className="relative h-7 w-7 rounded-full border border-gold/40 min-[360px]:h-8 min-[360px]:w-8"
                   style={{ background: c.fill }}
                   title={c.name}
                 >
-                  <span className="absolute left-1/2 top-1/2 h-px w-10 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-gold/80" />
+                  <span className="absolute left-1/2 top-1/2 h-px w-9 -translate-x-1/2 min-[360px]:w-10 -translate-y-1/2 rotate-45 bg-gold/80" />
                 </span>
               ))}
             </div>
-            <p className="eyebrow mt-3 text-blue-mist">Colores reservados para Kelly y Kyara</p>
+            <p className="eyebrow mt-3 text-balance text-blue-mist">Colores reservados para Kelly y Kyara</p>
             <p className="mt-5 text-pretty font-sans text-sm font-light leading-relaxed text-blue-ice/80 md:text-[0.9375rem]">
               Los tonos de azul y el plata son exclusivos de las quinceañeras. ¡Gracias por ayudarnos a cuidar cada detalle de esta noche!
             </p>

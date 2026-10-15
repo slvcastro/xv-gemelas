@@ -20,11 +20,11 @@ export function familySummary(c: Counts) {
 
 /**
  * After the invitation was sent, a family that still has someone "por definir" gets a reminder by
- * default (the dialog can switch back to the full invitation at any time).
+ * default (the dialog can switch back to the invitation at any time).
  */
 export const isReminderFor = (family: AdminFamily) => !!family.sentAt && family.members.some((m) => m.rsvp === "pending");
 
-/** Both WhatsApp texts for a family: the full invitation and the reminder. */
+/** Both WhatsApp texts for a family: the short invitation and the reminder. */
 export function familyMessages(family: AdminFamily, link: string, deadline: string | null) {
   const memberNames = family.members.map((m) => m.name);
   const pendingNames = family.members.filter((m) => m.rsvp === "pending").map((m) => m.name);

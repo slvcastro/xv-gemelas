@@ -62,8 +62,8 @@ export function invitationMessage({ familyName, memberNames, url, deadline }: Me
     reserved,
     "",
     plural
-      ? `Abran su invitación personal y confirmen la asistencia de cada uno${before} aquí:`
-      : `Abre tu invitación personal y confirma tu asistencia${before} aquí:`,
+      ? `Abran su invitación personal y confirmen la asistencia de cada uno aquí${before}:`
+      : `Abre tu invitación personal y confirma tu asistencia aquí${before}:`,
     url,
     "",
     DRESS_CODE_NOTE,

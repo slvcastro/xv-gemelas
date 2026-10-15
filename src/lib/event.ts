@@ -60,8 +60,8 @@ export const CALENDAR_URL =
   "&dates=20261129T013000Z/20261129T080000Z" +
   "&details=" +
   encodeURIComponent(
-    `Ceremonia ${CEREMONY.time}: ${CEREMONY.place}, ${CEREMONY.address.join(", ")}.\n` +
-      `Recepción ${RECEPTION.time}: ${RECEPTION.place}, ${RECEPTION.address.join(", ")}.\n` +
+    `Ceremonia ${CEREMONY.time}: ${CEREMONY.place}, ${CEREMONY.address.join(", ")}\n` +
+      `Recepción ${RECEPTION.time}: ${RECEPTION.place}, ${RECEPTION.address.join(", ")}\n` +
       DRESS_CODE_NOTE
   ) +
   "&location=" +

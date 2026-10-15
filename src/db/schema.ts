@@ -38,7 +38,8 @@ export const media = pgTable("media", {
 
 /**
  * One invitation = one family (or one person) with a single personal link /i/<token>.
- * `name` is the family name, `greeting` the personal message they see and that goes in the WhatsApp.
+ * `name` is the family name, `greeting` the personal dedication they see when the invitation opens
+ * (PersonalWelcome); the WhatsApp text does not include it.
  * `status`, `maxGuests` and `checkedInAt` are caches derived from the members (guests) and are
  * recalculated on every change: see recalcFamily() in src/lib/families.ts.
  */
