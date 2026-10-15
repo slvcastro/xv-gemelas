@@ -1,7 +1,8 @@
 "use server";
 
 import { del } from "@vercel/blob";
-import { asc, eq, max } from "drizzle-orm";
+import { asc, eq, max, or } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { settings, songs } from "@/db/schema";
@@ -16,6 +17,28 @@ const finite = (v: unknown, fallback: number) => (typeof v === "number" && Numbe
 
 function refresh() {
   revalidatePath("/", "layout");
+}
+
+/** Deletes an uploaded song file that no song uses (an upload that could not be saved). Best effort. */
+async function discardFile(url: string) {
+  if (!BLOB_URL.test(url) || !new URL(url).pathname.startsWith("/musica/")) return;
+  try {
+    const [used] = await db
+      .select({ id: songs.id })
+      .from(songs)
+      .where(or(eq(songs.url, url), eq(songs.altUrl, url)))
+      .limit(1);
+    if (!used) await del(url);
+  } catch (e) {
+    console.warn("No se pudo borrar el archivo sin usar del Blob:", e);
+  }
+}
+
+/** The panel calls this when an upload went through but the song could not be added. */
+export async function discardSongUpload(url: string): Promise<Result> {
+  await requireAdmin();
+  await discardFile(url);
+  return { success: true };
 }
 
 /**
@@ -53,6 +76,7 @@ export async function addSong(input: {
     return { success: true };
   } catch (error) {
     console.error("Error al guardar la canción:", error);
+    await discardFile(input.url);
     return { success: false, error: "No se pudo guardar la canción." };
   }
 }
@@ -87,8 +111,9 @@ export async function moveSong(id: string, direction: -1 | 1): Promise<Result> {
     const j = i + direction;
     if (i < 0 || j < 0 || j >= list.length) return { success: true };
     [list[i], list[j]] = [list[j], list[i]];
-    // Renumber the whole list (0, 1, 2…) so the order never has ties.
-    await Promise.all(list.map((s, k) => db.update(songs).set({ sortOrder: k }).where(eq(songs.id, s.id))));
+    // Renumber the whole list (0, 1, 2…) in one transaction, so the order never has ties.
+    const updates: BatchItem<"pg">[] = list.map((s, k) => db.update(songs).set({ sortOrder: k }).where(eq(songs.id, s.id)));
+    await db.batch(updates as [BatchItem<"pg">, ...BatchItem<"pg">[]]);
     refresh();
     return { success: true };
   } catch (error) {
@@ -102,17 +127,18 @@ export async function deleteSong(id: string): Promise<Result> {
   try {
     const [song] = await db.select({ url: songs.url, altUrl: songs.altUrl }).from(songs).where(eq(songs.id, id));
     if (song) {
+      // The row goes first: if that fails, the song keeps playing with its file intact.
+      await db.delete(songs).where(eq(songs.id, id));
       // Files uploaded from the panel live in Blob; the first song ships with the site and stays there.
       for (const url of [song.url, song.altUrl]) {
         if (url && BLOB_URL.test(url)) {
           try {
             await del(url);
           } catch (e) {
-            console.warn("No se pudo borrar del Blob (se borra de la base igualmente):", e);
+            console.warn("No se pudo borrar del Blob (la canción ya se quitó de la lista):", e);
           }
         }
       }
-      await db.delete(songs).where(eq(songs.id, id));
     }
     refresh();
     return { success: true };

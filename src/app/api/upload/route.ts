@@ -8,7 +8,8 @@ import { checkAdmin } from "@/app/actions/adminAuth";
  */
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
-const AUDIO_TYPES = ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/x-m4a", "audio/aac", "audio/wav", "audio/x-wav", "audio/ogg", "audio/webm"];
+// MP3 / AAC only: the formats every phone plays (iPhones don't play every OGG or WebM).
+const AUDIO_TYPES = ["audio/mpeg", "audio/mp3", "audio/mp4", "audio/x-m4a", "audio/aac"];
 export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;
 

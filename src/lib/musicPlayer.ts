@@ -34,8 +34,6 @@ export function setPlaylist(tracks: PublicTrack[]) {
   state = { ...state, track: playlist[0] ?? null };
 }
 
-/** Volume of the current song: the background level times its own correction (never above full). */
-const songLevel = () => Math.min(1, MUSIC.volume * (state.track?.gain ?? 1));
 let state = INITIAL;
 const listeners = new Set<() => void>();
 function update(patch: Partial<MusicState>) {
@@ -76,6 +74,16 @@ const writePref = (value: "on" | "off") => {
   } catch {
     /* private mode: the choice just isn't remembered */
   }
+};
+
+/**
+ * Volume of the current song: the background level times its own correction. Through Web Audio it may
+ * go above 1 (a quiet song raised to the common level; the analysis keeps its loudest moment under full
+ * scale); an <audio> element's own volume stops at 1.
+ */
+const songLevel = () => {
+  const level = MUSIC.volume * (state.track?.gain ?? 1);
+  return gain ? level : Math.min(1, level);
 };
 
 const toDb = (g: number) => (g > 0.0001 ? 20 * Math.log10(g) : SILENCE_DB);
@@ -149,6 +157,9 @@ function load(index: number) {
 function setup() {
   if (audio) return;
   audio = new Audio();
+  // Songs added from the panel live on Vercel Blob, another origin: without this, Web Audio would play
+  // them as silence. Files served by the site itself are not affected.
+  audio.crossOrigin = "anonymous";
   audio.preload = "auto";
   audio.setAttribute("playsinline", "");
   audio.addEventListener("timeupdate", onTime);

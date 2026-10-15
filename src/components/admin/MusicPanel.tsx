@@ -2,15 +2,33 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { ArrowDown, ArrowUp, Music, Pause, Play, Plus, Trash2 } from "lucide-react";
-import { addSong, deleteSong, moveSong, setShowSongTitle, updateSong } from "@/app/actions/songs";
-import { analyseSong } from "@/lib/audioAnalysis";
+import { addSong, deleteSong, discardSongUpload, moveSong, setShowSongTitle, updateSong } from "@/app/actions/songs";
+import { SongAnalysisError, analyseSong } from "@/lib/audioAnalysis";
+import { type AudioFormat, stripTags } from "@/lib/audioTags";
 import { ConfirmDialog, btnPrimary, btnSmall, inputCls, labelCls } from "./ui";
 import type { AdminSong } from "./types";
 
-const ACCEPT = ".mp3,.m4a,.aac,.wav,.ogg,audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/wav,audio/ogg";
+// MP3 / AAC only: the formats every phone plays.
+const FORMATS: Record<AudioFormat, string> = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac" };
+const ACCEPT = ".mp3,.m4a,.aac,audio/mpeg,audio/mp4,audio/x-m4a,audio/aac";
 const MAX_MB = 20;
+/** Shown when an action could not reach the server (no signal, or the session ended). */
+const OFFLINE = "No se pudo conectar. Revisa tu internet (o vuelve a iniciar sesión) e intenta de nuevo.";
 
-const mmss = (s: number | null) => (s == null ? "" : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`);
+const formatOf = (file: File): AudioFormat | null => {
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  if (ext === "mp3" || ext === "m4a" || ext === "aac") return ext;
+  if (/mpeg|mp3/.test(file.type)) return "mp3";
+  if (/mp4|m4a/.test(file.type)) return "m4a";
+  if (/aac/.test(file.type)) return "aac";
+  return null;
+};
+
+const mmss = (s: number | null) => {
+  if (s == null) return "";
+  const t = Math.round(s);
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+};
 const db = (gain: number) => {
   const v = 20 * Math.log10(gain);
   return Math.abs(v) < 0.5 ? "sin cambio" : `${v > 0 ? "+" : "−"}${Math.abs(v).toFixed(1)} dB`;
@@ -51,9 +69,13 @@ function SongRow({
 
   const run = (action: () => Promise<{ success: boolean; error?: string }>, done?: string) =>
     start(async () => {
-      const r = await action();
-      if (!r.success) notify(r.error ?? "No se pudo guardar.");
-      else if (done) notify(done);
+      try {
+        const r = await action();
+        if (!r.success) notify(r.error ?? "No se pudo guardar.");
+        else if (done) notify(done);
+      } catch {
+        notify(OFFLINE);
+      }
     });
 
   const length = song.endAt ?? song.duration;
@@ -107,7 +129,7 @@ function SongRow({
               const on = e.target.checked;
               setActive(on);
               start(async () => {
-                const r = await updateSong(song.id, { isActive: on });
+                const r = await updateSong(song.id, { isActive: on }).catch(() => ({ success: false as const, error: OFFLINE }));
                 if (!r.success) {
                   setActive(!on);
                   notify(r.error);
@@ -165,7 +187,9 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
       setPreviewId(null);
       return;
     }
-    const a = new Audio(song.url);
+    const a = new Audio();
+    a.crossOrigin = "anonymous"; // loaded the same way guests load it
+    a.src = song.url;
     a.currentTime = song.startAt;
     a.volume = Math.min(1, 0.75 * song.gain);
     a.onended = () => setPreviewId(null);
@@ -174,46 +198,69 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
     setPreviewId(song.id);
   };
 
-  const upload = async (file: File) => {
-    if (file.size > MAX_MB * 1024 * 1024) {
-      notify(`El archivo pesa ${(file.size / 1048576).toFixed(1)} MB; el máximo es ${MAX_MB} MB. Usa un MP3 de 128 kbps.`);
+  const upload = async (picked: File) => {
+    const format = formatOf(picked);
+    if (!format) {
+      notify("Usa un archivo MP3 o M4A: son los que se oyen en todos los celulares.");
       return;
     }
+    if (picked.size > MAX_MB * 1024 * 1024) {
+      notify(`El archivo pesa ${(picked.size / 1048576).toFixed(1)} MB; el máximo es ${MAX_MB} MB. Usa un MP3 de 128 kbps.`);
+      return;
+    }
+    let uploaded: string | null = null;
     try {
+      setProgress("Preparando la canción…");
+      // The file's hidden labels (song name, artist, cover) are removed, so it can't reveal the song either.
+      const bytes = stripTags(new Uint8Array(await picked.arrayBuffer()), format);
+      const file = new File([bytes as Uint8Array<ArrayBuffer>], `cancion.${format}`, { type: FORMATS[format] });
       setProgress("Analizando la canción…");
-      const info = await analyseSong(file).catch(() => {
-        throw new Error("Este archivo no se pudo leer como audio. Prueba con un MP3.");
+      const info = await analyseSong(file).catch((e) => {
+        throw e instanceof SongAnalysisError ? e : new Error("Este archivo no se pudo leer como audio. Prueba con un MP3.");
       });
-      const ext = (file.name.split(".").pop() || "mp3").toLowerCase().replace(/[^a-z0-9]/g, "");
       const { upload: put } = await import("@vercel/blob/client");
       setProgress("Subiendo…");
       // A neutral file name: the song's name never appears in its web address.
-      const blob = await put(`musica/cancion.${ext}`, file, {
+      const blob = await put(`musica/cancion.${format}`, file, {
         access: "public",
+        contentType: FORMATS[format],
         handleUploadUrl: "/api/upload",
         multipart: file.size > 8 * 1024 * 1024,
         onUploadProgress: ({ percentage }) => setProgress(`Subiendo… ${Math.round(percentage)}%`),
       });
+      uploaded = blob.url;
+      // Guests' phones play it through Web Audio, which needs the file to allow being read from the site.
+      setProgress("Comprobando…");
+      const playable = await fetch(blob.url, { method: "HEAD", cache: "no-store" }).then(
+        (r) => r.ok,
+        () => false
+      );
+      if (!playable) throw new Error("El archivo se subió pero no se puede reproducir desde la invitación. Intenta más tarde.");
       const result = await addSong({
         url: blob.url,
-        title: nameFromFile(file),
+        title: nameFromFile(picked),
         gain: info.gain,
         startAt: info.startAt,
         endAt: info.endAt,
         duration: info.duration,
       });
       if (!result.success) throw new Error(result.error);
+      uploaded = null;
       notify(
         file.size > 6 * 1024 * 1024
           ? `Canción agregada. Pesa ${(file.size / 1048576).toFixed(1)} MB: si puedes, usa una versión de 128 kbps para que cargue más rápido en los celulares.`
           : "Canción agregada al final de la lista. Revisa su nombre."
       );
     } catch (err) {
+      // An upload that could not be added is deleted, so it doesn't take up space.
+      if (uploaded) void discardSongUpload(uploaded).catch(() => {});
       const reason = err instanceof Error ? err.message : "";
       notify(
         /client token/i.test(reason)
           ? "No se pudo autorizar la subida. Verifica que Vercel Blob esté conectado y que sigas con la sesión iniciada."
-          : `No se pudo agregar la canción. ${reason}`
+          : /fetch|network|load failed/i.test(reason)
+            ? OFFLINE
+            : `No se pudo agregar la canción. ${reason}`
       );
     } finally {
       setProgress(null);
@@ -244,7 +291,7 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
               const on = e.target.checked;
               setShow(on);
               start(async () => {
-                const r = await setShowSongTitle(on);
+                const r = await setShowSongTitle(on).catch(() => ({ success: false as const, error: OFFLINE }));
                 if (!r.success) setShow(!on);
                 notify(r.success ? (on ? "Los invitados verán el nombre de la canción." : "El nombre de la canción quedó oculto.") : r.error);
               });
@@ -306,8 +353,9 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
         />
       </div>
       <p className="mt-3 font-sans text-xs leading-relaxed text-blue-mist">
-        Mejor en MP3 de 128 kbps (unos 3–4 MB por canción) para que cargue rápido en los celulares; máximo {MAX_MB} MB. Al
-        subirla se quitan los silencios del inicio y del final y se nivela su volumen con las demás.
+        En MP3 o M4A; mejor MP3 de 128 kbps (unos 3–4 MB por canción) para que cargue rápido en los celulares; máximo{" "}
+        {MAX_MB} MB. Al subirla se quitan los silencios del inicio y del final, se nivela su volumen con las demás y se
+        borra el nombre que el archivo trae guardado por dentro.
       </p>
 
       {deleting && (
@@ -328,7 +376,7 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
                 previewRef.current?.pause();
                 setPreviewId(null);
               }
-              const r = await deleteSong(deleting.id);
+              const r = await deleteSong(deleting.id).catch(() => ({ success: false as const, error: OFFLINE }));
               notify(r.success ? "Canción borrada." : r.error);
               setDeleting(null);
             })
