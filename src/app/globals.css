@@ -400,6 +400,12 @@
     animation: cd-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
+  /* Botón de música: barras doradas que bailan mientras suena. */
+  .eq-bar {
+    transform-origin: bottom;
+    animation: eq 1.05s ease-in-out infinite;
+  }
+
   /* Itinerario: el medallón aparece y su aro se traza, la pluma dibuja la ilustración en oro, luego
      cada zona se colorea una a una y el hilo dorado crece hacia el siguiente momento. */
   .it-medal {
@@ -794,6 +800,15 @@
 @keyframes card-fly {
   to {
     transform: translate(var(--tx, 0), var(--ty, 0)) scale(var(--s, 1));
+  }
+}
+@keyframes eq {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
   }
 }
 @keyframes it-medal {
