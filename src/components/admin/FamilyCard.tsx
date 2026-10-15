@@ -29,7 +29,7 @@ export function familyMessages(family: AdminFamily, link: string, deadline: stri
   const memberNames = family.members.map((m) => m.name);
   const pendingNames = family.members.filter((m) => m.rsvp === "pending").map((m) => m.name);
   return {
-    invitation: invitationMessage({ familyName: family.name, greeting: family.greeting, memberNames, url: link, deadline }),
+    invitation: invitationMessage({ familyName: family.name, memberNames, url: link, deadline }),
     reminder: reminderMessage({ familyName: family.name, memberNames, pendingNames, url: link, deadline }),
   };
 }

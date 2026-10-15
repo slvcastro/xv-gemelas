@@ -233,7 +233,9 @@
 .orn-line,
 .sig-stroke,
 .env-line,
-.seal-crack {
+.seal-crack,
+.it-line,
+.it-ring {
   stroke-dasharray: 1 2;
 }
 .seal-crack {
@@ -396,6 +398,25 @@
   }
   .cd-digit {
     animation: cd-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Itinerario: el medallón aparece y su aro se traza, la pluma dibuja la ilustración en oro, luego
+     cada zona se colorea una a una y el hilo dorado crece hacia el siguiente momento. */
+  .it-medal {
+    animation: it-medal 0.7s cubic-bezier(0.3, 1.35, 0.5, 1) var(--d, 0s) both;
+  }
+  .it-ring {
+    animation: fx-draw 1.1s cubic-bezier(0.65, 0, 0.35, 1) var(--d, 0s) both;
+  }
+  .it-line {
+    animation: fx-draw 0.75s cubic-bezier(0.45, 0.05, 0.35, 1) var(--d, 0s) both;
+  }
+  .it-fill {
+    animation: it-color 0.6s ease-out var(--d, 0s) both;
+  }
+  .it-thread {
+    transform-origin: top;
+    animation: fx-grow-y 1.1s cubic-bezier(0.45, 0, 0.2, 1) var(--d, 0s) both;
   }
 
   /* Gemelas (TwinReveal): como una transformación de cuento. Se abren los rayos, sube polvo dorado y
@@ -773,6 +794,18 @@
 @keyframes card-fly {
   to {
     transform: translate(var(--tx, 0), var(--ty, 0)) scale(var(--s, 1));
+  }
+}
+@keyframes it-medal {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+@keyframes it-color {
+  from {
+    fill-opacity: 0;
+    stroke-opacity: 0;
   }
 }
 @keyframes twin-reveal {
