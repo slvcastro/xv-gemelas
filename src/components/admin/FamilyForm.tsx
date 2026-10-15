@@ -315,7 +315,7 @@ export function FamilyForm({
             );
           })}
         </div>
-        <p className="mt-1 font-sans text-[11px] text-blue-mist/80">Lo verán al abrir su invitación y va en el WhatsApp.</p>
+        <p className="mt-1 font-sans text-[11px] text-blue-mist/80">Es la dedicatoria que verán al abrir su invitación. El WhatsApp lleva un mensaje breve con su enlace.</p>
       </div>
 
       <div>

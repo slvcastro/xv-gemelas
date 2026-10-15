@@ -10,9 +10,9 @@ export const RECEPTION_STARTS_AT = new Date("2026-11-29T03:00:00Z");
 /** Last valid day for the RSVP deadline (the day of the party). */
 export const LAST_DEADLINE_DAY = "2026-11-28";
 
-/** Dress code, as the family asked: formal wear for everyone and no shade of blue (reserved for the twins). */
+/** Dress code, as the family asked: formal wear for everyone, and no blue or silver (reserved for the twins). */
 export const DRESS_CODE_NOTE =
-  "Vestimenta: ropa de gala para damas y caballeros. Por favor, no portar ninguna gama de azul: es el color reservado para las quinceañeras.";
+  "Vestimenta: ropa de gala para damas y caballeros. Por favor, no portar ninguna gama de azul ni plata: son los colores reservados para las quinceañeras.";
 
 export type Venue = {
   label: string;
@@ -39,17 +39,17 @@ export const RECEPTION: Venue = {
   mapUrl: "https://maps.app.goo.gl/AykNL1cFP1HyLVdcA",
 };
 
-export type ItineraryIcon = "church" | "arrival" | "presentation" | "toast" | "waltz" | "dinner" | "dance" | "end";
+export type ItineraryIcon = "church" | "reception" | "tiara" | "toast" | "waltz" | "surprise" | "dance";
 
-export const ITINERARY: { time: string; title: string; icon: ItineraryIcon }[] = [
-  { time: "7:30 p. m.", title: "Misa", icon: "church" },
-  { time: "9:00 p. m.", title: "Llegada de invitados", icon: "arrival" },
-  { time: "9:30 p. m.", title: "Presentación", icon: "presentation" },
-  { time: "9:45 p. m.", title: "Brindis", icon: "toast" },
-  { time: "10:00 p. m.", title: "Vals", icon: "waltz" },
-  { time: "10:30 p. m.", title: "Cena", icon: "dinner" },
-  { time: "10:45 p. m.", title: "Apertura de pista", icon: "dance" },
-  { time: "Sin restricción de horario", title: "Fin de la fiesta", icon: "end" },
+/** The night step by step (times in Yucatán). `detail` is an optional second line, e.g. the venue. */
+export const ITINERARY: { time: string; title: string; detail?: string; icon: ItineraryIcon }[] = [
+  { time: "7:30 p. m.", title: "Misa", detail: CEREMONY.place, icon: "church" },
+  { time: "9:00 p. m.", title: "Recepción", detail: RECEPTION.place, icon: "reception" },
+  { time: "10:00 p. m.", title: "Presentación de las quinceañeras", icon: "tiara" },
+  { time: "10:15 p. m.", title: "Brindis", icon: "toast" },
+  { time: "10:30 p. m.", title: "Vals", icon: "waltz" },
+  { time: "11:00 p. m.", title: "Baile sorpresa y cena", icon: "surprise" },
+  { time: "11:30 p. m.", title: "Apertura de la pista de baile", icon: "dance" },
 ];
 
 // Ceremony 7:30 p. m. (UTC-6, Yucatán) → 01:30 UTC next day; ends 2:00 a. m. local (08:00 UTC).
@@ -60,8 +60,8 @@ export const CALENDAR_URL =
   "&dates=20261129T013000Z/20261129T080000Z" +
   "&details=" +
   encodeURIComponent(
-    `Ceremonia ${CEREMONY.time}: ${CEREMONY.place}, ${CEREMONY.address.join(", ")}.\n` +
-      `Recepción ${RECEPTION.time}: ${RECEPTION.place}, ${RECEPTION.address.join(", ")}.\n` +
+    `Ceremonia ${CEREMONY.time}: ${CEREMONY.place}, ${CEREMONY.address.join(", ")}\n` +
+      `Recepción ${RECEPTION.time}: ${RECEPTION.place}, ${RECEPTION.address.join(", ")}\n` +
       DRESS_CODE_NOTE
   ) +
   "&location=" +

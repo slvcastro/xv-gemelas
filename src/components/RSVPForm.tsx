@@ -514,8 +514,8 @@ function ThankYouCard({
             <p className="eyebrow text-gold">Vestimenta</p>
             <p className="mt-2 text-pretty font-sans text-sm leading-relaxed text-blue-ice/80">
               Ropa de gala para damas y caballeros. Por favor{" "}
-              <strong className="font-medium text-gold">{single ? "no portes" : "no porten"} ninguna gama de azul</strong>: es el color
-              reservado para las quinceañeras.
+              <strong className="font-medium text-gold">{single ? "no portes" : "no porten"} ninguna gama de azul ni plata</strong>: son
+              los colores reservados para las quinceañeras.
             </p>
           </div>
         )}

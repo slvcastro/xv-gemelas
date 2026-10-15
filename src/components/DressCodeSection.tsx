@@ -1,8 +1,16 @@
 import { CornerTicks, SectionTitle } from "@/components/decor";
 import { Reveal } from "@/components/Reveal";
 
-/** The blues reserved for Kelly and Kyara (the family's reference card): no guest wears any of them. */
-const RESERVED_BLUES = ["#0D41E2", "#0C63E8", "#0A85ED", "#09A6F3", "#08C7FB"];
+/** The colours reserved for Kelly and Kyara (the family's reference card): no guest wears any of them. */
+const RESERVED_COLORS = [
+  { name: "Azul", fill: "#0D41E2" },
+  { name: "Azul", fill: "#0C63E8" },
+  { name: "Azul", fill: "#0A85ED" },
+  { name: "Azul", fill: "#09A6F3" },
+  { name: "Azul", fill: "#08C7FB" },
+  // Silver, drawn with a metallic sheen.
+  { name: "Plata", fill: "linear-gradient(135deg, #F7F8FA 0%, #C3C9D1 38%, #EEF1F4 55%, #9AA3AE 100%)" },
+];
 
 export const DressCodeSection = () => {
   return (
@@ -24,18 +32,27 @@ export const DressCodeSection = () => {
             <CornerTicks className="inset-2.5" />
             <p className="eyebrow text-gold">Importante</p>
             <p className="mt-3 text-balance font-serif text-[1.375rem] leading-snug text-gold md:text-2xl">
-              No portar ninguna gama de azul
+              No portar ninguna gama de azul ni plata
             </p>
-            <div className="mt-6 flex justify-center gap-2.5" role="img" aria-label="Tonos de azul reservados para las quinceañeras">
-              {RESERVED_BLUES.map((c) => (
-                <span key={c} className="relative h-8 w-8 rounded-full border border-gold/40" style={{ backgroundColor: c }}>
-                  <span className="absolute left-1/2 top-1/2 h-px w-10 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-gold/80" />
+            <div
+              className="mt-6 flex flex-wrap justify-center gap-2 min-[360px]:gap-2.5"
+              role="img"
+              aria-label="Tonos de azul y plata reservados para las quinceañeras"
+            >
+              {RESERVED_COLORS.map((c, i) => (
+                <span
+                  key={i}
+                  className="relative h-7 w-7 rounded-full border border-gold/40 min-[360px]:h-8 min-[360px]:w-8"
+                  style={{ background: c.fill }}
+                  title={c.name}
+                >
+                  <span className="absolute left-1/2 top-1/2 h-px w-9 -translate-x-1/2 min-[360px]:w-10 -translate-y-1/2 rotate-45 bg-gold/80" />
                 </span>
               ))}
             </div>
-            <p className="eyebrow mt-3 text-blue-mist">Tonos reservados para Kelly y Kyara</p>
+            <p className="eyebrow mt-3 text-balance text-blue-mist">Colores reservados para Kelly y Kyara</p>
             <p className="mt-5 text-pretty font-sans text-sm font-light leading-relaxed text-blue-ice/80 md:text-[0.9375rem]">
-              Estos tonos de azul son exclusivos de las quinceañeras. ¡Gracias por ayudarnos a cuidar cada detalle de esta noche!
+              Los tonos de azul y el plata son exclusivos de las quinceañeras. ¡Gracias por ayudarnos a cuidar cada detalle de esta noche!
             </p>
           </div>
         </Reveal>

@@ -1,6 +1,7 @@
 /**
- * Suggested personal messages for the admin panel. Each family sees its message when the invitation
- * opens (PersonalWelcome) and it also goes in the WhatsApp text. Written by "nosotras" (the twins),
+ * Suggested personal messages for the admin panel. Each family sees its message as a dedication when
+ * the invitation opens (PersonalWelcome); the WhatsApp text stays short and does not repeat it.
+ * Written by "nosotras" (the twins),
  * with a plural form for families and a singular form for a guest invited alone.
  */
 

@@ -1,7 +1,6 @@
-import { CEREMONY, DRESS_CODE_NOTE, EVENT_DATE_LABEL, RECEPTION } from "@/lib/event";
+import { DRESS_CODE_NOTE, EVENT_DATE_LABEL } from "@/lib/event";
 import { joinNames } from "@/lib/families";
 import { formatLongDate } from "@/lib/format";
-import { defaultGreeting } from "@/lib/greetings";
 
 /** Digits for wa.me: Mexican 10-digit numbers get the 52 country code; other formats are kept. */
 export function whatsappNumber(phone: string | null | undefined) {
@@ -43,33 +42,30 @@ type MessageData = {
   deadline?: Date | string | null;
 };
 
-/** Personal invitation sent from the admin panel (one link per family). */
-export function invitationMessage({ familyName, greeting, memberNames, url, deadline }: MessageData & { greeting?: string | null }) {
+/**
+ * Personal invitation sent from the admin panel (one link per family). Short on purpose: the family's
+ * dedication, the venues and the itinerary are waiting for them in the invitation itself.
+ */
+export function invitationMessage({ familyName, memberNames, url, deadline }: MessageData) {
   const plural = memberNames.length !== 1;
   const deadlineLabel = formatLongDate(deadline);
   const reserved = plural
     ? `Hemos reservado ${memberNames.length} lugares para: ${joinNames(memberNames)}.`
     : "Hemos reservado un lugar especialmente para ti.";
+  const before = deadlineLabel ? ` antes del ${deadlineLabel}` : "";
 
   return [
     `¡Hola, ${familyName}!`,
     "",
-    greeting?.trim() || defaultGreeting(memberNames.length),
-    "",
-    `Con mucha alegría ${plural ? "los" : "te"} invitamos a celebrar nuestros XV años.`,
-    "",
-    EVENT_DATE_LABEL,
-    `Ceremonia: ${CEREMONY.time}, ${CEREMONY.place}, Ticul`,
-    `Recepción: ${RECEPTION.time}, ${RECEPTION.place} (${RECEPTION.address[0]})`,
+    `Con mucha alegría ${plural ? "los" : "te"} invitamos a celebrar nuestros XV años el ${EVENT_DATE_LABEL.toLowerCase()}.`,
     "",
     reserved,
     "",
     plural
-      ? "Abran su invitación personal y confirmen la asistencia de cada uno aquí:"
-      : "Abre tu invitación personal y confirma tu asistencia aquí:",
+      ? `Abran su invitación personal y confirmen la asistencia de cada uno aquí${before}:`
+      : `Abre tu invitación personal y confirma tu asistencia aquí${before}:`,
     url,
     "",
-    ...(deadlineLabel ? [`Por favor ${plural ? "confirmen" : "confirma"} antes del ${deadlineLabel}.`] : []),
     DRESS_CODE_NOTE,
     "",
     "Con cariño, Kelly y Kyara",
