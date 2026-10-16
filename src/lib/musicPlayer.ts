@@ -369,8 +369,14 @@ function play(fadeSeconds: number, announce: boolean) {
   const deck = act();
   const seq = ++playSeq;
   clearTimeout(pauseTimer);
-  // Resumed before a pause finished settling a blend: only the new song comes back.
-  if (blending) finishBlend();
+  // Resumed before a pause finished settling a blend. If the blend had begun, its own timer ends it
+  // smoothly; if the new song never started (slow to load), the old one fades out now, so only the
+  // new song comes back.
+  if (blending && idle().fader.target !== 0) {
+    idle().fader.fade(0, 0.3);
+    clearTimeout(blendTimer);
+    blendTimer = setTimeout(finishBlend, 420);
+  }
   systemPaused = false;
   if (!deck.cued) cue(deck, state.index);
   void ctx?.resume?.();
