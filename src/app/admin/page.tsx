@@ -8,6 +8,7 @@ import { db } from "@/db";
 import { invitations, guests, media, settings, songs } from "@/db/schema";
 import { formatDateTime, formatTime } from "@/lib/format";
 import { getDeadline, memberOrder } from "@/lib/invitations";
+import { cleanMusicSettings } from "@/lib/music";
 import { getSiteUrl } from "@/lib/site";
 
 export const metadata: Metadata = { title: "Panel · Kelly & Kyara" };
@@ -27,7 +28,16 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     getDeadline(),
     getSiteUrl(),
     db.select().from(songs).orderBy(asc(songs.sortOrder), asc(songs.createdAt)),
-    db.select({ showSongTitle: settings.showSongTitle }).from(settings).orderBy(asc(settings.id)).limit(1),
+    db
+      .select({
+        showSongTitle: settings.showSongTitle,
+        volume: settings.musicVolume,
+        fadeIn: settings.musicFadeIn,
+        crossfade: settings.musicCrossfade,
+      })
+      .from(settings)
+      .orderBy(asc(settings.id))
+      .limit(1),
   ]);
 
   const membersByFamily = new Map<string, typeof memberRows>();
@@ -93,6 +103,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       media={adminMedia}
       songs={adminSongs}
       showSongTitle={setting?.showSongTitle ?? false}
+      musicSettings={cleanMusicSettings(setting)}
       siteUrl={siteUrl}
       deadline={deadline?.toISOString() ?? null}
       initialTab={TABS.includes(tab as AdminTab) ? (tab as AdminTab) : "invitados"}

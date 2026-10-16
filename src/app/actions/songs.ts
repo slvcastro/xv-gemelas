@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { settings, songs } from "@/db/schema";
 import { CEREMONY_STARTS_AT, RECEPTION_STARTS_AT } from "@/lib/event";
+import { cleanMusicSettings, type MusicSettings } from "@/lib/music";
 import { requireAdmin } from "./adminAuth";
 
 type Result = { success: true } | { success: false; error: string };
@@ -145,6 +146,26 @@ export async function deleteSong(id: string): Promise<Result> {
   } catch (error) {
     console.error("Error al borrar la canción:", error);
     return { success: false, error: "No se pudo borrar la canción." };
+  }
+}
+
+/** Maximum volume, rise when the envelope opens and blend between songs (values kept within limits). */
+export async function saveMusicSettings(input: Partial<MusicSettings>): Promise<Result> {
+  await requireAdmin();
+  try {
+    const s = cleanMusicSettings(input);
+    const values = { musicVolume: s.volume, musicFadeIn: s.fadeIn, musicCrossfade: s.crossfade };
+    const [row] = await db.select({ id: settings.id }).from(settings).orderBy(asc(settings.id)).limit(1);
+    if (row) {
+      await db.update(settings).set({ ...values, updatedAt: new Date() }).where(eq(settings.id, row.id));
+    } else {
+      await db.insert(settings).values({ eventDate: CEREMONY_STARTS_AT, receptionDate: RECEPTION_STARTS_AT, ...values });
+    }
+    refresh();
+    return { success: true };
+  } catch (error) {
+    console.error("Error al guardar los ajustes de la música:", error);
+    return { success: false, error: "No se pudieron guardar los ajustes." };
   }
 }
 

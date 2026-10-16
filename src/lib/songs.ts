@@ -2,7 +2,7 @@ import { cache } from "react";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { settings, songs } from "@/db/schema";
-import { audioType, type PublicMusic } from "@/lib/music";
+import { DEFAULT_MUSIC_SETTINGS, audioType, cleanMusicSettings, type PublicMusic } from "@/lib/music";
 
 /** The song bundled with the site, used only if the database can't be read. No name: it is never shown. */
 const FALLBACK: PublicMusic = {
@@ -18,6 +18,7 @@ const FALLBACK: PublicMusic = {
     },
   ],
   showTitle: false,
+  settings: DEFAULT_MUSIC_SETTINGS,
 };
 
 /**
@@ -41,11 +42,21 @@ export const getPublicMusic = cache(async (): Promise<PublicMusic> => {
         .from(songs)
         .where(eq(songs.isActive, true))
         .orderBy(asc(songs.sortOrder), asc(songs.createdAt)),
-      db.select({ showSongTitle: settings.showSongTitle }).from(settings).orderBy(asc(settings.id)).limit(1),
+      db
+        .select({
+          showSongTitle: settings.showSongTitle,
+          volume: settings.musicVolume,
+          fadeIn: settings.musicFadeIn,
+          crossfade: settings.musicCrossfade,
+        })
+        .from(settings)
+        .orderBy(asc(settings.id))
+        .limit(1),
     ]);
     const showTitle = setting?.showSongTitle ?? false;
     return {
       showTitle,
+      settings: cleanMusicSettings(setting),
       tracks: rows.map((r) => ({
         sources: [r.url, r.altUrl].filter((u): u is string => !!u).map((src) => ({ src, type: audioType(src) })),
         gain: r.gain,

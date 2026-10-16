@@ -21,6 +21,10 @@ export const settings = pgTable("settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   /** Background music: show guests the song's name (off: they only see the music button). */
   showSongTitle: boolean("show_song_title").notNull().default(false),
+  /** Background music: maximum volume (0–1), rise when the envelope opens and blend between songs (s). */
+  musicVolume: real("music_volume").notNull().default(0.7),
+  musicFadeIn: real("music_fade_in").notNull().default(0),
+  musicCrossfade: real("music_crossfade").notNull().default(6),
 });
 
 /**

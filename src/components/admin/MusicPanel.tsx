@@ -2,10 +2,18 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { ArrowDown, ArrowUp, Music, Pause, Play, Plus, Trash2 } from "lucide-react";
-import { addSong, deleteSong, discardSongUpload, moveSong, setShowSongTitle, updateSong } from "@/app/actions/songs";
+import {
+  addSong,
+  deleteSong,
+  discardSongUpload,
+  moveSong,
+  saveMusicSettings,
+  setShowSongTitle,
+  updateSong,
+} from "@/app/actions/songs";
 import { MAX_SONG_SECONDS, SongAnalysisError, analyseSong } from "@/lib/audioAnalysis";
 import { type AudioFormat, readSongFile } from "@/lib/audioFile";
-import { MUSIC } from "@/lib/music";
+import { MUSIC_LIMITS, type MusicSettings } from "@/lib/music";
 import { ConfirmDialog, btnPrimary, btnSmall, inputCls, labelCls } from "./ui";
 import type { AdminSong } from "./types";
 
@@ -166,7 +174,60 @@ function SongRow({
  * names, and uploading new ones. On upload the browser finds the silences at the ends and the song's
  * loudness, so every song starts and ends cleanly and plays at the same level.
  */
-export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; showTitle: boolean; notify: (m: string) => void }) {
+/** One setting of the sound: a slider with its value in words and what it means. */
+function SoundSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  shown,
+  hint,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  shown: string;
+  hint: string;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="flex items-baseline justify-between gap-3">
+        <span className="font-sans text-sm text-blue-ice">{label}</span>
+        <span className="font-serif text-lg text-gold" aria-hidden="true">
+          {shown}
+        </span>
+      </span>
+      <input
+        type="range"
+        className="mt-2 w-full accent-[#D8C477]"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        aria-valuetext={shown}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+      <span className="mt-1 block font-sans text-xs leading-relaxed text-blue-mist">{hint}</span>
+    </label>
+  );
+}
+
+export function MusicPanel({
+  songs,
+  showTitle,
+  settings,
+  notify,
+}: {
+  songs: AdminSong[];
+  showTitle: boolean;
+  settings: MusicSettings;
+  notify: (m: string) => void;
+}) {
   const fileRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLAudioElement | null>(null);
   const [previewId, setPreviewId] = useState<string | null>(null);
@@ -174,8 +235,27 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
   const [deleting, setDeleting] = useState<AdminSong | null>(null);
   const [show, setShow] = useState(showTitle);
   const [pending, start] = useTransition();
+  // Sound settings: edited here, saved with "Guardar ajustes".
+  const [volume, setVolume] = useState(Math.round(settings.volume * 100));
+  const [fadeIn, setFadeIn] = useState(Math.round(settings.fadeIn));
+  const [crossfade, setCrossfade] = useState(Math.round(settings.crossfade));
+  const [savingSettings, startSaving] = useTransition();
+  const settingsChanged =
+    volume !== Math.round(settings.volume * 100) ||
+    fadeIn !== Math.round(settings.fadeIn) ||
+    crossfade !== Math.round(settings.crossfade);
 
   const previewOut = useRef<{ ctx: AudioContext; gain: GainNode; source?: MediaElementAudioSourceNode } | null>(null);
+  /** Correction of the song being previewed, so moving the volume slider is heard at once. */
+  const previewGain = useRef(1);
+  const levelFor = (gain: number, vol = volume) => Math.min(1, (vol / 100) * gain);
+
+  const changeVolume = (v: number) => {
+    setVolume(v);
+    const out = previewOut.current;
+    if (out && previewId) out.gain.gain.setTargetAtTime(levelFor(previewGain.current, v), out.ctx.currentTime, 0.05);
+    else if (previewRef.current && previewId) previewRef.current.volume = levelFor(previewGain.current, v);
+  };
 
   useEffect(
     () => () => {
@@ -195,8 +275,9 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
     a.crossOrigin = "anonymous"; // loaded the same way guests load it
     a.src = song.url;
     a.currentTime = song.startAt;
-    // Through Web Audio, as in the invitation, so a quiet song sounds as loud as guests will hear it.
-    const level = MUSIC.volume * song.gain;
+    // Through Web Audio, as in the invitation, at the volume chosen below: what guests will hear.
+    previewGain.current = song.gain;
+    const level = levelFor(song.gain);
     try {
       if (!previewOut.current) {
         const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
@@ -248,7 +329,7 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
       const { format } = song;
       const file = new File([song.bytes as Uint8Array<ArrayBuffer>], `cancion.${format}`, { type: FORMATS[format] });
       setProgress("Analizando la canción…");
-      const info = await analyseSong(file).catch((e) => {
+      const info = await analyseSong(file, (done) => setProgress(`Analizando la canción… ${Math.round(done * 100)}%`)).catch((e) => {
         throw e instanceof SongAnalysisError ? e : new Error("Este archivo no se pudo leer como audio. Prueba con un MP3.");
       });
       const { upload: put } = await import("@vercel/blob/client");
@@ -309,9 +390,72 @@ export function MusicPanel({ songs, showTitle, notify }: { songs: AdminSong[]; s
         <h2 className="font-serif text-2xl text-gold">Música de fondo</h2>
       </div>
       <p className="mt-2 text-pretty font-sans text-sm leading-relaxed text-blue-ice/80">
-        Empieza cuando el invitado toca «Abrir invitación»: sube poco a poco, suenan las canciones activas en este
-        orden y la lista vuelve a empezar. Cada invitado puede pausarla con el botón dorado.
+        Empieza cuando el invitado toca «Abrir invitación»: suenan las canciones activas en este orden, cada una se
+        mezcla con la siguiente y la lista vuelve a empezar. Cada invitado puede pausarla con el botón dorado.
       </p>
+
+      <div className="mt-6 border border-gold/30 bg-navy/50 px-4 py-4">
+        <h3 className="font-serif text-lg text-gold">Ajustes del sonido</h3>
+        <div className="mt-4 space-y-5">
+          <SoundSlider
+            label="Volumen máximo"
+            value={volume}
+            min={MUSIC_LIMITS.volume.min * 100}
+            max={MUSIC_LIMITS.volume.max * 100}
+            step={5}
+            shown={`${volume} %`}
+            hint="Lo más fuerte que suena la música en los celulares de los invitados. Si escuchas una canción de la lista de abajo, la oyes con este volumen."
+            onChange={changeVolume}
+          />
+          <SoundSlider
+            label="Entrada suave al abrir la invitación"
+            value={fadeIn}
+            min={MUSIC_LIMITS.fadeIn.min}
+            max={MUSIC_LIMITS.fadeIn.max}
+            step={1}
+            shown={fadeIn === 0 ? "Apagada" : `${fadeIn} s`}
+            hint={
+              fadeIn === 0
+                ? "La música empieza de inmediato, ya con su volumen."
+                : `La música sube desde el silencio durante ${fadeIn} segundos.`
+            }
+            onChange={setFadeIn}
+          />
+          <SoundSlider
+            label="Mezcla entre canciones (crossfade)"
+            value={crossfade}
+            min={MUSIC_LIMITS.crossfade.min}
+            max={MUSIC_LIMITS.crossfade.max}
+            step={1}
+            shown={crossfade === 0 ? "Sin mezcla" : `${crossfade} s`}
+            hint={
+              crossfade === 0
+                ? "Cada canción empieza justo cuando termina la anterior."
+                : `Durante ${crossfade} segundos la canción que termina va bajando mientras la siguiente va subiendo. También cuando la lista vuelve a empezar.`
+            }
+            onChange={setCrossfade}
+          />
+        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className={btnPrimary}
+            disabled={!settingsChanged || savingSettings}
+            onClick={() =>
+              startSaving(async () => {
+                const r = await saveMusicSettings({ volume: volume / 100, fadeIn, crossfade }).catch(() => ({
+                  success: false as const,
+                  error: OFFLINE,
+                }));
+                notify(r.success ? "Ajustes del sonido guardados." : r.error);
+              })
+            }
+          >
+            {savingSettings ? "Guardando…" : "Guardar ajustes"}
+          </button>
+          {settingsChanged && !savingSettings && <span className="font-sans text-xs text-amber-200">Cambios sin guardar</span>}
+        </div>
+      </div>
 
       <div className="mt-6 border border-gold/30 bg-navy/50 px-4 py-4">
         <label className="flex cursor-pointer items-start gap-3">

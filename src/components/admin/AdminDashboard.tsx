@@ -10,6 +10,7 @@ import { PhotosPanel } from "./PhotosPanel";
 import { ReceptionPanel } from "./ReceptionPanel";
 import { Modal, btnPrimary } from "./ui";
 import type { AdminFamily, AdminMedia, AdminSong } from "./types";
+import type { MusicSettings } from "@/lib/music";
 
 export type AdminTab = "invitados" | "fotos" | "musica" | "recepcion";
 
@@ -25,6 +26,7 @@ export const AdminDashboard = ({
   media,
   songs,
   showSongTitle,
+  musicSettings,
   siteUrl,
   deadline,
   initialTab,
@@ -34,6 +36,7 @@ export const AdminDashboard = ({
   media: AdminMedia[];
   songs: AdminSong[];
   showSongTitle: boolean;
+  musicSettings: MusicSettings;
   siteUrl: string;
   /** ISO date of the RSVP deadline, or null. */
   deadline: string | null;
@@ -110,7 +113,9 @@ export const AdminDashboard = ({
       <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         {activeTab === "invitados" && <FamiliesPanel families={families} siteUrl={siteUrl} deadline={deadline} notify={notify} />}
         {activeTab === "fotos" && <PhotosPanel media={media} notify={notify} />}
-        {activeTab === "musica" && <MusicPanel songs={songs} showTitle={showSongTitle} notify={notify} />}
+        {activeTab === "musica" && (
+          <MusicPanel songs={songs} showTitle={showSongTitle} settings={musicSettings} notify={notify} />
+        )}
         {activeTab === "recepcion" && <ReceptionPanel families={families} notify={notify} />}
       </main>
 
