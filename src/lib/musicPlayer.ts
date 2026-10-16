@@ -163,8 +163,15 @@ function startTicker() {
   ticker ??= setInterval(applyVolumes, 40);
 }
 
-/** Level of a song: the maximum volume chosen in the panel times its own correction (never above full). */
-const levelOf = (index: number) => Math.min(1, settings.volume * (playlist[index]?.gain ?? 1));
+/**
+ * Level of a song: the maximum volume chosen in the panel times its own correction, so every song sounds
+ * equally loud. A quiet song may need a gain above 1; the analysis keeps its loudest moment under full
+ * scale (gain ≤ 0.98/peak today, ≤ 0.98/(0.75·peak) for songs added before the volume setting existed).
+ */
+const levelOf = (index: number) => {
+  const gain = playlist[index]?.gain ?? 1;
+  return Math.min(settings.volume * gain, Math.max(1, 0.75 * gain));
+};
 
 /** File for this browser; the start offset rides along as a media fragment (#t=), so silence is skipped. */
 function srcFor(el: HTMLAudioElement, track: PublicTrack) {
@@ -177,14 +184,21 @@ function cue(deck: Deck, index: number) {
   const track = playlist[index];
   const src = srcFor(deck.el, track);
   deck.fader.fade(0, MUSIC.minFade);
-  if (deck.index === index && deck.el.getAttribute("src") === src) {
+  const load = () => {
+    deck.el.src = src;
+    // Loading drops any "pause" event still queued, so there is no own pause left to wait for.
+    deck.ownPause = false;
+  };
+  // Same song already in the deck (and it loaded fine): just go back to its start. A deck whose
+  // load failed is loaded again, so a song can be retried once the connection is back.
+  if (deck.index === index && deck.el.getAttribute("src") === src && !deck.el.error) {
     try {
       deck.el.currentTime = track.startAt;
     } catch {
-      deck.el.src = src;
+      load();
     }
   } else {
-    deck.el.src = src;
+    load();
   }
   deck.index = index;
   deck.cued = true;
@@ -322,13 +336,20 @@ function blendTo(index: number, seconds: number, announce: boolean) {
 function songFailed(deck: Deck) {
   broken.add(deck.index);
   deck.cued = false;
+  stopDeck(deck); // a failed load leaves the element "not paused"
   if (deck !== act()) return; // it was only being prepared: it will be skipped when its turn comes
   const previous = idle();
-  if (blending && !previous.el.paused && !previous.el.ended) {
-    // The song that was playing is still there: it carries on, and the next change skips the bad one.
+  // (A deck whose own load failed also reads "not paused": `cued` and `error` tell them apart.)
+  const previousPlaying =
+    blending && state.status === "playing" && previous.cued && !previous.el.error && !previous.el.paused && !previous.el.ended;
+  if (previousPlaying) {
+    // The song that was playing is still there: it carries on (back at its level), and the next
+    // change skips the bad one.
     clearTimeout(blendTimer);
     blending = false;
+    deck.fader.fade(0, MUSIC.minFade);
     active = 1 - active;
+    previous.fader.fade(levelOf(previous.index), 0.3);
     update({ index: previous.index, track: playlist[previous.index] });
     setMediaSession(playlist[previous.index]);
     return;
@@ -348,6 +369,8 @@ function play(fadeSeconds: number, announce: boolean) {
   const deck = act();
   const seq = ++playSeq;
   clearTimeout(pauseTimer);
+  // Resumed before a pause finished settling a blend: only the new song comes back.
+  if (blending) finishBlend();
   systemPaused = false;
   if (!deck.cued) cue(deck, state.index);
   void ctx?.resume?.();
@@ -524,26 +547,26 @@ function setup() {
 export function startMusic() {
   if (state.status !== "idle" || playlist.length === 0 || typeof window === "undefined") return;
   setup();
-  unlock(idle());
+  // Paused on an earlier visit: nothing plays, not even the silent unlock (on iPhone any sound would
+  // interrupt the guest's own music app).
   if (readPref() === "off") {
     update({ status: "paused", announce: Date.now() });
     return;
   }
+  unlock(idle());
   play(settings.fadeIn, true);
 }
 
 /** Play / pause from the button (or the lock screen); `on` forces a state. The choice is remembered. */
 export function toggleMusic(on?: boolean) {
   if (playlist.length === 0) return;
-  if (!decks.length) {
-    setup();
-    unlock(idle());
-  }
+  if (!decks.length) setup();
   const playing = state.status === "playing" || state.status === "loading";
   const want = on ?? !playing;
   hiddenPause = false;
   if (want && !playing) {
     writePref("on");
+    unlock(idle()); // within this tap, so the second deck can blend in later (iPhone)
     if (broken.size >= playlist.length) broken.clear(); // every song failed before: try them again
     play(MUSIC.resumeFade, false);
   } else if (!want && playing) {
@@ -565,6 +588,7 @@ export function nextTrack() {
   // Still loading (or paused from the lock screen): change the song in place.
   const wasLoading = state.status === "loading";
   playSeq++;
+  switchSeq++; // a song still starting must not report the one picked now as broken
   finishBlend();
   stopDeck(act());
   cue(act(), next);

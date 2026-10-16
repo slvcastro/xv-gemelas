@@ -248,13 +248,14 @@ export function MusicPanel({
   const previewOut = useRef<{ ctx: AudioContext; gain: GainNode; source?: MediaElementAudioSourceNode } | null>(null);
   /** Correction of the song being previewed, so moving the volume slider is heard at once. */
   const previewGain = useRef(1);
-  const levelFor = (gain: number, vol = volume) => Math.min(1, (vol / 100) * gain);
+  // Same level as in the invitation (src/lib/musicPlayer.ts, levelOf).
+  const levelFor = (gain: number, vol = volume) => Math.min((vol / 100) * gain, Math.max(1, 0.75 * gain));
 
   const changeVolume = (v: number) => {
     setVolume(v);
     const out = previewOut.current;
     if (out && previewId) out.gain.gain.setTargetAtTime(levelFor(previewGain.current, v), out.ctx.currentTime, 0.05);
-    else if (previewRef.current && previewId) previewRef.current.volume = levelFor(previewGain.current, v);
+    else if (previewRef.current && previewId) previewRef.current.volume = Math.min(1, levelFor(previewGain.current, v));
   };
 
   useEffect(

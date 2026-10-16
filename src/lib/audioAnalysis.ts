@@ -96,6 +96,11 @@ export async function analyseSong(file: File, onProgress?: (done: number) => voi
   let lastBreak = performance.now();
   const breathe = async () => {
     if (performance.now() - lastBreak < 30) return;
+    // A hidden tab can't be tapped, and its timers are slowed down: keep working instead.
+    if (document.hidden) {
+      lastBreak = performance.now();
+      return;
+    }
     onProgress?.(Math.min(0.99, done / total));
     await new Promise((resolve) => setTimeout(resolve, 0));
     lastBreak = performance.now();
