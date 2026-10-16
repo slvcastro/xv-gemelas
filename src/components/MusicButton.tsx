@@ -18,7 +18,7 @@ const ANNOUNCE_MS = 6000;
 export function MusicButton({ music }: { music: PublicMusic }) {
   const s = useSyncExternalStore(subscribe, getState, getServerState);
   // Hand the songs to the player before the guest can open the envelope.
-  useEffect(() => setPlaylist(music.tracks), [music]);
+  useEffect(() => setPlaylist(music.tracks, music.settings), [music]);
   // The title shows for each new announcement until its time is up.
   const [shownUntil, setShownUntil] = useState(0);
   const showTitle = s.announce !== 0 && shownUntil !== s.announce;
