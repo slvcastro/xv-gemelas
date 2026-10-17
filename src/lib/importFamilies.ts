@@ -237,7 +237,11 @@ export function parseFamiliesImport(text: string): ImportParseResult {
         const mapped = new Set([family, member, columns.type, columns.phone, adults, children, total]);
         const ignored = cells.filter((c, i) => c && !mapped.has(i));
         if (ignored.length) {
-          warnings.push({ line, message: `No se usan ${ignored.length === 1 ? "la columna" : "las columnas"} ${ignored.map((c) => `«${c}»`).join(", ")}; el resto se importa normalmente.` });
+          const list = ignored.map((c) => `«${c}»`).join(", ");
+          warnings.push({
+            line,
+            message: `${ignored.length === 1 ? `No se usa la columna ${list}` : `No se usan las columnas ${list}`}; el resto se importa normalmente.`,
+          });
         }
         return;
       }
