@@ -1,4 +1,4 @@
-import { DRESS_CODE_NOTE, EVENT_DATE_LABEL } from "@/lib/event";
+import { EVENT_DATE_LABEL } from "@/lib/event";
 import { joinNames } from "@/lib/families";
 import { formatLongDate } from "@/lib/format";
 
@@ -44,7 +44,7 @@ type MessageData = {
 
 /**
  * Personal invitation sent from the admin panel (one link per family). Short on purpose: the family's
- * dedication, the venues and the itinerary are waiting for them in the invitation itself.
+ * dedication, the venues, the itinerary and the dress code are waiting for them in the invitation itself.
  */
 export function invitationMessage({ familyName, memberNames, url, deadline }: MessageData) {
   const plural = memberNames.length !== 1;
@@ -65,8 +65,6 @@ export function invitationMessage({ familyName, memberNames, url, deadline }: Me
       ? `Abran su invitación personal y confirmen la asistencia de cada uno aquí${before}:`
       : `Abre tu invitación personal y confirma tu asistencia aquí${before}:`,
     url,
-    "",
-    DRESS_CODE_NOTE,
     "",
     "Con cariño, Kelly y Kyara",
   ].join("\n");
