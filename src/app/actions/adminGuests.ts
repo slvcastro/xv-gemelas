@@ -33,7 +33,13 @@ export type ActionResult = { success: true } | { success: false; error: string }
 export type MemberInput = {
   /** Existing member id (when editing); omit for new members. */
   id?: string;
+  /** "" = invited without a name (only adult or child). */
   name: string;
+  /**
+   * When editing: the name as the form loaded it. If the admin did not change it, the stored name is
+   * kept, so a name the family wrote on their invitation while the form was open is not overwritten.
+   */
+  originalName?: string;
   isChild?: boolean;
   /** Only when editing: answer recorded by the admin (e.g. they called by phone). */
   rsvp?: Rsvp;
@@ -48,16 +54,18 @@ export type FamilyInput = {
   isActive?: boolean;
 };
 
+/** Every row is a member; the name is optional ("" = invited without a name: only adult or child). */
 function cleanMembers(members: unknown) {
   const list = Array.isArray(members) ? (members as MemberInput[]) : [];
   return list
+    .filter((m) => m && typeof m === "object")
     .map((m) => ({
       id: isUuid(m?.id) ? m.id : undefined,
       name: cleanText(m?.name, LIMITS.memberName),
+      nameChanged: typeof m?.originalName !== "string" || cleanText(m.originalName, LIMITS.memberName) !== cleanText(m?.name, LIMITS.memberName),
       isChild: m?.isChild === true,
       rsvp: isRsvp(m?.rsvp) ? m.rsvp : undefined,
-    }))
-    .filter((m) => m.name.length > 0);
+    }));
 }
 
 function validateFamily(data: FamilyInput) {
@@ -65,7 +73,7 @@ function validateFamily(data: FamilyInput) {
   const name = cleanText(data?.name, LIMITS.familyName);
   if (!name) return fail("Escribe el nombre de la familia.");
   const members = cleanMembers(data?.members);
-  if (members.length === 0) return fail("Agrega al menos un integrante con su nombre.");
+  if (members.length === 0) return fail("Agrega al menos un adulto o un niño.");
   if (members.length > LIMITS.members) return fail(`Una familia puede tener hasta ${LIMITS.members} integrantes.`);
   return {
     ok: true as const,
@@ -146,7 +154,13 @@ export async function updateFamily(id: string, data: FamilyInput): Promise<Actio
         queries.push(
           db
             .update(guests)
-            .set({ name: m.name, isChild: m.isChild, sortOrder: i, ...(rsvpChanged && { rsvp: m.rsvp }) })
+            .set({
+              // A name set (or cleared) by the admin is theirs: the family can no longer change it.
+              ...(m.nameChanged && { name: m.name, nameFromGuest: false }),
+              isChild: m.isChild,
+              sortOrder: i,
+              ...(rsvpChanged && { rsvp: m.rsvp }),
+            })
             .where(and(eq(guests.id, current.id), eq(guests.invitationId, id)))
         );
       } else {
@@ -257,7 +271,10 @@ export async function importFamilies(text: string): Promise<ImportResult> {
     if (String(text ?? "").length > 400_000) return { success: false, error: "El texto es demasiado largo. Importa por partes." };
     const parsed = parseFamiliesImport(String(text ?? ""));
     if (parsed.families.length === 0) {
-      return { success: false, error: "No encontramos familias con integrantes. Revisa que cada fila tenga Familia e Integrante." };
+      return {
+        success: false,
+        error: "No encontramos familias con integrantes. Revisa que cada fila tenga la Familia y su integrante (el nombre o cuántos, por ejemplo «2 adultos»).",
+      };
     }
 
     const existing = await db.select({ name: invitations.name, token: invitations.token }).from(invitations);

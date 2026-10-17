@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { FileSpreadsheet, Plus, Search, Upload } from "lucide-react";
 import { deleteFamily, markFamilySent } from "@/app/actions/adminGuests";
-import { countMembers, normalizeText, plural } from "@/lib/families";
+import { countMembers, hasName, normalizeText, plural } from "@/lib/families";
 import { DeadlineControl } from "./DeadlineControl";
 import { FamilyCard, familyMessages, isReminderFor } from "./FamilyCard";
 import { FamilyForm } from "./FamilyForm";
@@ -13,9 +13,10 @@ import { SendWhatsAppDialog } from "./SendWhatsAppDialog";
 import { ConfirmDialog, Modal, btnPrimary, btnSecondary, inputCls } from "./ui";
 import type { AdminFamily } from "./types";
 
-type Filter = "all" | "confirmed" | "pending" | "declined" | "unsent" | "unopened";
+type Filter = "all" | "confirmed" | "pending" | "declined" | "unsent" | "unopened" | "unnamed";
 
-const FILTERS: { id: Filter; label: string; test: (f: AdminFamily) => boolean }[] = [
+/** `optional` filters only show up while some family matches them. */
+const FILTERS: { id: Filter; label: string; test: (f: AdminFamily) => boolean; optional?: boolean }[] = [
   { id: "all", label: "Todas", test: () => true },
   { id: "confirmed", label: "Confirmadas", test: (f) => f.status === "confirmed" },
   // Families that still owe an answer for at least one member.
@@ -23,6 +24,8 @@ const FILTERS: { id: Filter; label: string; test: (f: AdminFamily) => boolean }[
   { id: "declined", label: "No asistirán", test: (f) => f.status === "declined" },
   { id: "unsent", label: "Sin enviar", test: (f) => !f.sentAt },
   { id: "unopened", label: "Sin abrir", test: (f) => !f.openedAt },
+  // Someone invited without a name (only how many adults and children).
+  { id: "unnamed", label: "Sin nombres", test: (f) => f.members.some((m) => !hasName(m)), optional: true },
 ];
 
 /** "Invitados" tab: families with their members, numbers, WhatsApp, import and Excel. */
@@ -76,7 +79,7 @@ export function FamiliesPanel({
       if (!test(f)) return false;
       if (!q) return true;
       if (byPhone && (f.phone ?? "").replace(/\D/g, "").includes(digits.replace(/\D/g, ""))) return true;
-      const haystack = normalizeText([f.name, f.token, f.phone ?? "", ...f.members.map((m) => m.name)].join(" | "));
+      const haystack = normalizeText([f.name, f.token, f.phone ?? "", ...f.members.map((m) => m.label)].join(" | "));
       return haystack.includes(q);
     });
   }, [families, query, filter]);
@@ -175,7 +178,7 @@ export function FamiliesPanel({
               />
             </div>
             <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:px-0" role="group" aria-label="Filtrar familias">
-              {FILTERS.map((f) => (
+              {FILTERS.filter((f) => !f.optional || counts[f.id] > 0 || filter === f.id).map((f) => (
                 <button
                   key={f.id}
                   type="button"

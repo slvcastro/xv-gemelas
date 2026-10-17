@@ -73,7 +73,7 @@ export const media = pgTable("media", {
  * `name` is the family name, `greeting` the personal dedication they see when the invitation opens
  * (PersonalWelcome); the WhatsApp text does not include it.
  * `status`, `maxGuests` and `checkedInAt` are caches derived from the members (guests) and are
- * recalculated on every change: see recalcFamily() in src/lib/families.ts.
+ * recalculated on every change: see recalcFamily() in src/lib/invitations.ts.
  */
 export const invitations = pgTable("invitations", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -97,7 +97,10 @@ export const invitations = pgTable("invitations", {
   sentAt: timestamp("sent_at", { withTimezone: true }),
 });
 
-/** Members of a family, registered in advance by the admin. Guests never type names. */
+/**
+ * Members of a family, registered in advance by the admin. The name is optional (""): the admin may only
+ * know how many adults and children come, and the family can then write the names on their invitation.
+ */
 export const guests = pgTable("guests", {
   id: uuid("id").primaryKey().defaultRandom(),
   invitationId: uuid("invitation_id").references(() => invitations.id, { onDelete: "cascade" }),
@@ -112,6 +115,11 @@ export const guests = pgTable("guests", {
   /** Entrance registered at the door (per member; the QR is per family). */
   checkedInAt: timestamp("checked_in_at", { withTimezone: true }),
   sortOrder: integer("sort_order").notNull().default(0),
+  /**
+   * The name was written by the family on their invitation (the admin left it empty: name ""). They may
+   * still correct it; a name written by the admin can only be changed from the panel.
+   */
+  nameFromGuest: boolean("name_from_guest").notNull().default(false),
 });
 
 export const accessLogs = pgTable("access_logs", {

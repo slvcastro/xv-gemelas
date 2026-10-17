@@ -1,5 +1,5 @@
 import { EVENT_DATE_LABEL } from "@/lib/event";
-import { joinNames } from "@/lib/families";
+import { groupMembers, hasName, joinNames, type MemberLike, type Rsvp } from "@/lib/families";
 import { formatLongDate } from "@/lib/format";
 
 /** Digits for wa.me: Mexican 10-digit numbers get the 52 country code; other formats are kept. */
@@ -36,8 +36,8 @@ export const isDesktopBrowser = () =>
 
 type MessageData = {
   familyName: string;
-  /** Names of all the members, in order. */
-  memberNames: string[];
+  /** All the members, in order (a member may have no name yet: name ""). */
+  members: (MemberLike & { rsvp?: Rsvp })[];
   url: string;
   deadline?: Date | string | null;
 };
@@ -46,12 +46,19 @@ type MessageData = {
  * Personal invitation sent from the admin panel (one link per family). Short on purpose: the family's
  * dedication, the venues, the itinerary and the dress code are waiting for them in the invitation itself.
  */
-export function invitationMessage({ familyName, memberNames, url, deadline }: MessageData) {
-  const plural = memberNames.length !== 1;
+export function invitationMessage({ familyName, members, url, deadline }: MessageData) {
+  const plural = members.length !== 1;
   const deadlineLabel = formatLongDate(deadline);
-  const reserved = plural
-    ? `Hemos reservado ${memberNames.length} lugares para: ${joinNames(memberNames)}.`
-    : "Hemos reservado un lugar especialmente para ti.";
+  // Names when the admin wrote them; otherwise how many ("para ustedes: 3 adultos y 1 niño").
+  const anyNamed = members.some(hasName);
+  const onlyAdults = members.every((m) => !m.isChild);
+  const reserved = !plural
+    ? "Hemos reservado un lugar especialmente para ti."
+    : anyNamed
+      ? `Hemos reservado ${members.length} lugares para: ${joinNames(groupMembers(members))}.`
+      : onlyAdults
+        ? `Hemos reservado ${members.length} lugares para ustedes.`
+        : `Hemos reservado ${members.length} lugares para ustedes: ${joinNames(groupMembers(members))}.`;
   const before = deadlineLabel ? ` antes del ${deadlineLabel}` : "";
 
   return [
@@ -71,11 +78,13 @@ export function invitationMessage({ familyName, memberNames, url, deadline }: Me
 }
 
 /** Friendly reminder for families that opened the invitation but still have members "por definir". */
-export function reminderMessage({ familyName, memberNames, pendingNames, url, deadline }: MessageData & { pendingNames: string[] }) {
-  const plural = memberNames.length !== 1;
+export function reminderMessage({ familyName, members, url, deadline }: MessageData) {
+  const plural = members.length !== 1;
   const deadlineLabel = formatLongDate(deadline);
-  // Only list names when some (not all) members are still undecided.
-  const partial = plural && pendingNames.length > 0 && pendingNames.length < memberNames.length;
+  const pending = members.filter((m) => m.rsvp === "pending");
+  // Only say who when some (not all) members are still undecided ("Ana y 1 acompañante").
+  const partial = plural && pending.length > 0 && pending.length < members.length;
+  const pendingNames = groupMembers(pending, members.some(hasName));
 
   return [
     `¡Hola, ${familyName}!`,

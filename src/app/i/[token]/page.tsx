@@ -41,7 +41,7 @@ export default async function InvitationPage({ params }: Props) {
         <PersonalWelcome
           familyName={family.name}
           greeting={family.greeting}
-          memberNames={family.members.map((m) => m.name)}
+          members={family.members}
           responded={family.responded}
           deadline={family.deadline}
         />

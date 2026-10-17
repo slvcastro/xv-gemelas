@@ -4,12 +4,15 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DoorOpen, QrCode, RotateCcw, ScanLine, Search } from "lucide-react";
 import { registerEntrance, undoEntrance } from "@/app/actions/checkin";
-import { normalizeText, plural } from "@/lib/families";
+import { hasName, normalizeText, plural } from "@/lib/families";
 import { ChildTag, ConfirmDialog, RsvpChip, btnPrimary, btnSmall, inputCls, labelCls } from "./ui";
 import type { AdminFamily, AdminMember } from "./types";
 
 type Filter = "waiting" | "arrived" | "all";
 type Pending = { family: AdminFamily; member: AdminMember; action: "override" | "undo" };
+
+/** Who, in a message: the name, or "Acompañante 1 (Familia Pérez)" for someone without one. */
+const who = (family: AdminFamily, member: AdminMember) => (hasName(member) ? member.label : `${member.label} (${family.name})`);
 
 /** "Recepción" tab: who arrived, who is still expected, and manual entrance per member. */
 export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; notify: (message: string) => void }) {
@@ -35,7 +38,7 @@ export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; 
         const waiting = f.members.some((m) => m.rsvp === "yes" && !m.checkedInAt);
         const arrived = f.members.some((m) => m.checkedInAt);
         // A search looks in every family, so staff can find someone who never confirmed.
-        if (q) return normalizeText([f.name, f.token, ...f.members.map((m) => m.name)].join(" | ")).includes(q);
+        if (q) return normalizeText([f.name, f.token, ...f.members.map((m) => m.label)].join(" | ")).includes(q);
         if (filter === "waiting") return waiting;
         if (filter === "arrived") return arrived;
         return true;
@@ -51,7 +54,7 @@ export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; 
     setBusyId(null);
     setPending(null);
     if (res.status === "ok") {
-      notify(res.registered.length > 0 ? `Llegó ${member.name}.` : `${member.name} ya estaba registrado.`);
+      notify(res.registered.length > 0 ? `Llegó ${who(family, member)}.` : `${who(family, member)} ya estaba registrado.`);
     } else if (res.status === "needs_override") {
       setPending({ family, member, action: "override" });
     } else if (res.status === "invalid") {
@@ -66,7 +69,7 @@ export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; 
     const res = await undoEntrance(family.id, [member.id]);
     setBusyId(null);
     setPending(null);
-    notify(res.status === "ok" ? `Se deshizo la entrada de ${member.name}.` : res.status === "error" ? res.message : "Esta familia ya no existe.");
+    notify(res.status === "ok" ? `Se deshizo la entrada de ${who(family, member)}.` : res.status === "error" ? res.message : "Esta familia ya no existe.");
   };
 
   return (
@@ -186,8 +189,8 @@ export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; 
                   {f.members.map((m) => (
                     <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <span className="font-sans text-sm text-blue-ice">{m.name}</span>
-                        {m.isChild && <ChildTag />}
+                        <span className={`font-sans text-sm ${hasName(m) ? "text-blue-ice" : "italic text-blue-mist"}`}>{m.label}</span>
+                        {m.isChild && hasName(m) && <ChildTag />}
                         {m.checkedInAt ? (
                           <span className="inline-flex items-center gap-1 font-sans text-xs text-emerald-200">
                             <DoorOpen size={12} aria-hidden="true" /> Llegó {m.checkedInAt}
@@ -202,7 +205,7 @@ export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; 
                           disabled={busyId === m.id}
                           onClick={() => setPending({ family: f, member: m, action: "undo" })}
                           className={btnSmall}
-                          aria-label={`Deshacer la entrada de ${m.name}`}
+                          aria-label={`Deshacer la entrada de ${who(f, m)}`}
                         >
                           <RotateCcw size={13} aria-hidden="true" /> Deshacer
                         </button>
@@ -212,7 +215,7 @@ export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; 
                           disabled={busyId === m.id}
                           onClick={() => (m.rsvp === "yes" && f.isActive ? register(f, m, false) : setPending({ family: f, member: m, action: "override" }))}
                           className={`${btnSmall} ${m.rsvp === "yes" ? "border-emerald-300/50 text-emerald-100" : ""}`}
-                          aria-label={`Registrar la entrada de ${m.name}`}
+                          aria-label={`Registrar la entrada de ${who(f, m)}`}
                         >
                           <DoorOpen size={13} aria-hidden="true" /> {busyId === m.id ? "Registrando…" : "Registrar"}
                         </button>
@@ -236,7 +239,7 @@ export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; 
           onConfirm={() => register(pending.family, pending.member, true)}
           message={
             <>
-              <strong className="text-gold">{pending.member.name}</strong>{" "}
+              <strong className="text-gold">{who(pending.family, pending.member)}</strong>{" "}
               {pending.member.rsvp === "no" ? "respondió que no asistiría" : pending.member.rsvp === "pending" ? "no confirmó su asistencia" : "tiene la invitación desactivada"}
               . ¿Registrar su entrada de todos modos?
             </>
@@ -253,7 +256,7 @@ export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; 
           onConfirm={() => undo(pending.family, pending.member)}
           message={
             <>
-              ¿Marcar que <strong className="text-gold">{pending.member.name}</strong> todavía no ha llegado? Podrás registrar su entrada de nuevo.
+              ¿Marcar que <strong className="text-gold">{who(pending.family, pending.member)}</strong> todavía no ha llegado? Podrás registrar su entrada de nuevo.
             </>
           }
         />
