@@ -26,8 +26,13 @@ export const familyKey = (name: string) => normalizeText(name);
 
 const HEADER_FIRST = /^(familia|familias|invitacion|invitaciones|grupo|nombre de la familia)$/;
 const HEADER_SECOND = /^(integrante|integrantes|nombre|nombres|invitado|invitados|persona|personas)$/;
-const HEADER_TYPE = /^(tipo( .*)?|adulto ?(\/|o) ?nin[oa].*|edad( .*)?|categoria)$/;
-const HEADER_PHONE = /^((telefono|tel\.?|celular|cel\.?|whatsapp|movil)( .*)?|numero( de (telefono|celular|whatsapp))?)$/;
+const KIND = "(adultos?|nin[oa]s?|menor(es)?|mayor(es)?|a|n)";
+const HEADER_TYPE = new RegExp(`^(tipo|tipo \\(.*\\)|edad(es)?|anos|categoria|clasificacion|${KIND} ?(/|-|o) ?${KIND}( .*)?)$`);
+/** «Tipo de invitado»: only when there is no clearer type column («Edad», «Adulto/Niño»). */
+const HEADER_TYPE_LOOSE = /^tipo de (invitado|persona|integrante)s?$/;
+const HEADER_PHONE = /(^|[^a-z])(tel|telefonos?|telefonico|cel|celular(es)?|whats(app)?|movil|contacto)([^a-z]|$)|^numero$/;
+/** Headers that are clearly something else: never read as the type or the phone (a table number is not an age). */
+const HEADER_OTHER = /mesa|boleto|pase|codigo|clave|folio|parentesco|relacion|nota|observacion|comentario|confirm|asistencia|correo|mail|direccion|regalo|alergia|respuesta|estado|enlace|llego|enviada|abrio|respondio|ingreso|activo/;
 const HEADER_ADULTS = /^((no\.?|numero|cantidad|num\.?|#) ?(de )?)?adultos?$/;
 const HEADER_CHILDREN = /^((no\.?|numero|cantidad|num\.?|#) ?(de )?)?(ninos?|ninas?|ninos\/as|menores)$/;
 /** How many people in all («No. de pases», «Boletos», «Total de invitados»), adults unless said otherwise. */
@@ -73,7 +78,9 @@ export function parseAmount(raw: string, childByDefault = false): { adults: numb
     if (!m || (!m[1] && !m[2])) return null;
     const kind = m[2] ?? "";
     // A word with no number: only unambiguous ones («acompañante», «adulto», «menor», «bebé», «niño» with ñ).
-    if (!m[1] && !unnamedMark && !/^(acompanantes?|adultos?( mayor(es)?)?|menor|bebe)$/.test(kind) && !(/^nin/.test(kind) && /ñ/i.test(raw))) return null;
+    if (!m[1] && !unnamedMark && !/^(acompanantes?|adultos?( mayor(es)?)?|menor(es)?|bebes?|nin[oa]s)$/.test(kind) && !(/^nin/.test(kind) && /ñ/i.test(raw))) {
+      return null;
+    }
     const n = m[1] ? (NUMBER_WORDS[m[1]] ?? Number(m[1])) : 1;
     if (/^(nin|menor|bebe)/.test(kind)) children += n;
     else if (/^(adult|acompan)/.test(kind)) adults += n;
@@ -167,7 +174,13 @@ export function parseFamiliesImport(text: string): ImportParseResult {
   const warned = new Set<string>();
   /** Who came with each named person («Juan y acompañante», «Ana y 2 niños»), per family. */
   const companions = new Map<string, Map<string, { adults: number; children: number }>>();
-  let columns = { family: 0, member: 1, type: 2, phone: 3, adults: -1, children: -1, total: -1 };
+  let columns = { family: 0, member: 1, type: 2, phone: 3, adults: -1, children: -1, total: -1, amountInPhone: false, countPerRow: false };
+  /**
+   * Rows of each family, and how many of them are «Adultos | 2» / «Niños | 3» (a kind and a «Cantidad»).
+   * Only when every row of a family is one of those, each kind once, the counts are per row; otherwise
+   * (a total filled down or written once in a merged cell) the number is the family's total.
+   */
+  const familyRows = new Map<string, { rows: number; kindRows: number; adults: number; children: number; kinds: Set<string>; repeated: boolean; line: number }>();
 
   lines.forEach((rawLine, index) => {
     const line = index + 1;
@@ -176,7 +189,9 @@ export function parseFamiliesImport(text: string): ImportParseResult {
 
     if (firstRow) {
       firstRow = false;
-      const find = (re: RegExp) => cells.findIndex((c) => re.test(normalizeText(c)));
+      // Headers compared without accents, case or a trailing «:» / «*» («Teléfono*», «Edad:»).
+      const header = cells.map((c) => normalizeText(c).replace(/[\s:*.]+$/, ""));
+      const find = (re: RegExp, skip: number[] = []) => header.findIndex((h, i) => !skip.includes(i) && re.test(h));
       const familyCol = find(HEADER_FIRST);
       const memberCol = find(HEADER_SECOND);
       if (familyCol >= 0 || memberCol >= 0) {
@@ -185,8 +200,9 @@ export function parseFamiliesImport(text: string): ImportParseResult {
         const adults = find(HEADER_ADULTS);
         const children = find(HEADER_CHILDREN);
         const total = find(HEADER_TOTAL);
-        const type = find(HEADER_TYPE);
-        const phone = find(HEADER_PHONE);
+        const taken = [familyCol, memberCol, adults, children, total];
+        const type = [find(HEADER_TYPE, taken), find(HEADER_TYPE_LOOSE, taken)].find((i) => i >= 0) ?? -1;
+        const phone = find(HEADER_PHONE, [...taken, type]);
         const counts = adults >= 0 || children >= 0 || total >= 0;
         // «Nombre | Adultos | Niños»: with counts and no «Familia» column, the name is the invitation's.
         const countsOnly = counts && familyCol < 0;
@@ -201,9 +217,10 @@ export function parseFamiliesImport(text: string): ImportParseResult {
               ? -1
               : ([0, 1, 2, 3, 4, 5].find((i) => i !== family && i !== phone && i !== type) ?? -1);
         const used = new Set([family, member, adults, children, total]);
-        // Type and phone without their own header take a column with an empty header, never one titled
-        // with something else («Mesa», «No. de boleto»: their numbers are not ages).
-        const firstFree = (skip: number) => [0, 1, 2, 3, 4, 5].find((i) => !used.has(i) && i !== skip && !cells[i]) ?? -1;
+        // Type and phone without their own header take the next columns, unless their header says they are
+        // something else («Mesa», «No. de boleto»).
+        const firstFree = (skip: number) =>
+          [0, 1, 2, 3, 4, 5].find((i) => !used.has(i) && i !== skip && !HEADER_OTHER.test(header[i] ?? "")) ?? -1;
         columns = {
           family,
           member,
@@ -212,15 +229,23 @@ export function parseFamiliesImport(text: string): ImportParseResult {
           adults,
           children,
           total,
+          // «Familia | Número» and nothing else: the «número» is how many when it is too short for a phone.
+          amountInPhone: memberCol < 0 && !counts && header[phone] === "numero" && member >= cells.length,
+          // «Cantidad» may be per row («Niños | 3»); «Pases», «Boletos» or «Total» are always the family's.
+          countPerRow: header[total] === "cantidad",
         };
+        const mapped = new Set([family, member, columns.type, columns.phone, adults, children, total]);
+        const ignored = cells.filter((c, i) => c && !mapped.has(i));
+        if (ignored.length) {
+          warnings.push({ line, message: `No se usan ${ignored.length === 1 ? "la columna" : "las columnas"} ${ignored.map((c) => `«${c}»`).join(", ")}; el resto se importa normalmente.` });
+        }
         return;
       }
     }
     const cell = (i: number) => (i >= 0 ? (cells[i] ?? "") : "");
     const familyCell = cell(columns.family);
-    // «Familia | Número» with how many: a «número» of 1-3 digits cannot be a phone, it is the amount.
     const memberCell =
-      cell(columns.member) || (columns.member < 0 || !/^\d{1,3}$/.test(cell(columns.phone).replace(/\s+/g, "")) ? "" : cell(columns.phone));
+      cell(columns.member) || (columns.amountInPhone && /^\d{1,3}$/.test(cell(columns.phone).replace(/\s+/g, "")) ? cell(columns.phone) : "");
     let typeCell = cell(columns.type);
     let phoneCell = cell(columns.phone);
     // A phone number typed in the "Tipo" column (3-column lists without type).
@@ -257,12 +282,17 @@ export function parseFamiliesImport(text: string): ImportParseResult {
     const withCompanions = memberName && bareTotal === null && !amount ? splitCompanions(memberName) : null;
     // «Pases» / «Cantidad»: a number («4») or an amount («4 boletos», «2 adultos y 1 niño»).
     const totalRaw = cell(columns.total);
-    const totalGiven = !!totalRaw && !/^0+$/.test(totalRaw.replace(/\s+/g, ""));
-    const totalAmount = totalGiven ? parseAmount(totalRaw) : null;
-    if (totalGiven && !totalAmount) warnings.push({ line, message: `Fila ${line}: no se entendió la cantidad «${totalRaw}»; no se tomó en cuenta.` });
+    // «0», «-» or «N/A»: none (a «Niños | 0» row says there are no children).
+    const totalNone = /^(0+|[-–—]+|n\/?a)$/i.test(totalRaw.replace(/\s+/g, ""));
+    const totalAmount = totalRaw && !totalNone ? parseAmount(totalRaw) : null;
+    if (totalRaw && !totalNone && !totalAmount) {
+      warnings.push({ line, message: `Fila ${line}: no se entendió la cantidad «${totalRaw}»; no se tomó en cuenta.` });
+    }
+    // «2 adultos y 1 niño» says how many of each; a bare «4» or «4 pases» is only how many in all.
+    const saysAdults = !!totalAmount && /adult|acompan/.test(normalizeText(totalRaw));
     const totalChildren = Math.max(countCell(columns.children), totalAmount?.children ?? 0);
-    const totalAdults = Math.max(countCell(columns.adults), (bareTotal ?? 0) - totalChildren);
-    let totalPeople = totalAmount ? totalAmount.adults + totalAmount.children : 0;
+    const totalAdults = Math.max(countCell(columns.adults), (bareTotal ?? 0) - totalChildren, saysAdults ? totalAmount.adults : 0);
+    const totalPeople = totalAmount ? totalAmount.adults + totalAmount.children : 0;
     let unnamedAdults = (amount?.adults ?? 0) + (withCompanions?.adults ?? 0);
     let unnamedChildren = (amount?.children ?? 0) + (withCompanions?.children ?? 0);
     const named = amount || bareTotal !== null ? "" : (withCompanions?.name ?? memberName);
@@ -272,13 +302,14 @@ export function parseFamiliesImport(text: string): ImportParseResult {
       if (type.isChild) unnamedChildren = 1;
       else unnamedAdults = 1;
     }
-    // A kind and how many («Niño | 3», «Adultos | 2»): that many of that kind, not the family's total.
-    const kindOnly = !memberName ? !!typeCell && type.known : /^(adultos?|ninos?|ninas?|menor(es)?|bebes?|acompanantes?)$/.test(normalizeText(memberName));
-    if (!named && kindOnly && totalPeople > 0 && unnamedAdults + unnamedChildren === 1 && !totalAmount?.children) {
-      if (unnamedChildren) unnamedChildren = totalPeople;
-      else unnamedAdults = totalPeople;
-      totalPeople = 0;
-    }
+    // «Adultos | 2», «Niños | 3»: a kind (a word, not an age) and how many. Whether that count is the row's
+    // or the family's total is decided per family at the end (see kindRows).
+    const kindRow =
+      !named &&
+      unnamedAdults + unnamedChildren === 1 &&
+      (!!totalAmount || totalNone) &&
+      !totalAmount?.children &&
+      (!memberName ? !!typeCell && type.known && !/^\d/.test(typeCell) : !/\d/.test(memberName));
     if (!named && unnamedAdults + unnamedChildren + totalAdults + totalChildren + totalPeople === 0) {
       if (familyCell) lastKey = key;
       // A row with only the family's name (or zeros), in a list with «Adultos» / «Niños» columns: nothing to add.
@@ -309,6 +340,20 @@ export function parseFamiliesImport(text: string): ImportParseResult {
       families.set(key, family);
     }
     lastKey = key;
+
+    const rows = familyRows.get(key) ?? { rows: 0, kindRows: 0, adults: 0, children: 0, kinds: new Set<string>(), repeated: false, line };
+    rows.rows++;
+    if (kindRow && columns.countPerRow) {
+      const child = unnamedChildren > 0;
+      // «Niño» and «Niña» (or «Adulto», «Adultas») are the same kind: one person per row, not a count each.
+      const kind = normalizeText(memberName || typeCell).replace(/(?<=[rln])es$|s$/, "").replace(/[ao]$/, "");
+      rows.kindRows++;
+      if (rows.kinds.has(kind)) rows.repeated = true;
+      rows.kinds.add(kind);
+      if (child) rows.children += totalPeople;
+      else rows.adults += totalPeople;
+    }
+    familyRows.set(key, rows);
 
     if (totalAdults + totalChildren + totalPeople > 0) {
       const t = totals.get(key);
@@ -366,6 +411,20 @@ export function parseFamiliesImport(text: string): ImportParseResult {
 
   for (const family of families.values()) {
     family.phone = phones.get(family.key) ?? "";
+    const rows = familyRows.get(family.key);
+    if (rows && rows.kindRows === rows.rows && !rows.repeated) {
+      // «Adultos | 2», «Niños | 3»: that many of each kind (the one person per row is replaced).
+      if (rows.adults + rows.children > LIMITS.members) {
+        warnings.push({ line: rows.line, message: `Fila ${rows.line}: ${family.name} llegaría a más de ${LIMITS.members} integrantes (máximo); solo se agregaron ${LIMITS.members}.` });
+      }
+      const adults = Math.min(rows.adults, LIMITS.members);
+      const children = Math.min(rows.children, LIMITS.members - adults);
+      family.members = [
+        ...Array.from({ length: adults }, () => ({ name: "", isChild: false })),
+        ...Array.from({ length: children }, () => ({ name: "", isChild: true })),
+      ];
+      continue;
+    }
     // «Adultos» / «Niños» totals: add people without a name up to them (adults after the last adult).
     const t = totals.get(family.key);
     if (!t) continue;
