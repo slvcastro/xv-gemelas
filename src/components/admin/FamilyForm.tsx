@@ -87,7 +87,12 @@ export function FamilyForm({
 
   const removeRow = (key: number) => {
     setConfirmRemove(null);
-    setRows((prev) => (prev.length === 1 ? [newRow()] : prev.filter((r) => r.key !== key)));
+    setRows((prev) => {
+      if (prev.length === 1) return [newRow()];
+      const next = prev.filter((r) => r.key !== key);
+      // Someone always stays invited: with only empty «Agregar integrante» rows left, the first one counts.
+      return next.some((r) => !r.draft || hasName(r)) ? next : next.map((r, i) => (i === 0 ? { ...r, draft: false } : r));
+    });
   };
 
   const askRemove = (row: Row) => {
@@ -127,8 +132,8 @@ export function FamilyForm({
     }
   };
 
-  // The people invited: every row but an empty «Agregar integrante» one (at least one row always counts).
-  const members = rows.some((r) => !r.draft || hasName(r)) ? rows.filter((r) => !r.draft || hasName(r)) : rows.slice(0, 1);
+  // The people invited: every row but an empty «Agregar integrante» one (removeRow keeps at least one).
+  const members = rows.filter((r) => !r.draft || hasName(r));
   const adults = members.filter((r) => !r.isChild).length;
   const children = members.length - adults;
   const unnamed = members.filter((r) => !hasName(r)).length;
@@ -306,7 +311,8 @@ export function FamilyForm({
                       key={label}
                       type="button"
                       aria-pressed={row.isChild === child}
-                      onClick={() => update(row.key, { isChild: child })}
+                      // Choosing the type of an added row means that person is invited, even without a name.
+                      onClick={() => update(row.key, { isChild: child, draft: false })}
                       className={`inline-flex min-h-9 items-center gap-1 px-3 font-sans text-xs transition-colors ${
                         row.isChild === child ? "bg-gold font-medium text-navy" : "text-blue-mist/70 hover:text-blue-ice"
                       }`}
@@ -319,7 +325,7 @@ export function FamilyForm({
                 {editing && (
                   <select
                     value={row.rsvp}
-                    onChange={(e) => update(row.key, { rsvp: e.target.value as Rsvp })}
+                    onChange={(e) => update(row.key, { rsvp: e.target.value as Rsvp, draft: false })}
                     aria-label={`Respuesta de ${labelOf.get(row.key) ?? `integrante ${index + 1}`}`}
                     className="min-h-9 border border-gold/25 bg-navy px-2 font-sans text-xs text-blue-ice outline-none focus:border-gold"
                   >

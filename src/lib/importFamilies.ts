@@ -30,6 +30,8 @@ const HEADER_TYPE = /^(tipo|tipo \(adulto ?\/ ?nino\)|adulto ?\/ ?nino|adulto o 
 const HEADER_PHONE = /^(telefono|tel|tel\.|celular|cel|cel\.|whatsapp|movil|numero)$/;
 const HEADER_ADULTS = /^((no\.?|numero|cantidad|num\.?|#) ?(de )?)?adultos?$/;
 const HEADER_CHILDREN = /^((no\.?|numero|cantidad|num\.?|#) ?(de )?)?(ninos?|ninas?|ninos\/as|menores)$/;
+/** How many people in all («No. de pases», «Boletos», «Total de invitados»), adults unless said otherwise. */
+const HEADER_TOTAL = /^((no\.?|numero|cantidad|num\.?|#|total) ?(de )?)?(pases?|boletos?|lugares?)$|^((no\.?|numero|cantidad|num\.?|#|total) ?(de )?)(invitados|personas)$|^(total|cantidad)$/;
 
 /** Most people one row may add (a typo like «200 adultos» must not create a crowd). */
 const MAX_PER_ROW = 30;
@@ -80,14 +82,24 @@ export function parseAmount(raw: string, childByDefault = false): { adults: numb
   return adults + children > 0 ? { adults, children } : null;
 }
 
-/** «Juan Pérez y acompañante», «Ana López + 2»: the name and how many come with them. */
-export function splitCompanions(raw: string): { name: string; adults: number } | null {
+/**
+ * «Juan Pérez y acompañante», «Ana López + 2», «Ana y dos niños», «Luis con 2 adultos y 1 niño»: the name
+ * and who comes with them (companions are adults unless the text says children).
+ */
+export function splitCompanions(raw: string): { name: string; adults: number; children: number } | null {
   const m = raw.match(/^(.*\S)\s*(?:\+|\by\b|\bcon\b)\s*(\d{1,2}|un|una|dos|tres)?\s*(acompa[ñn]antes?|invitad[oa]s?)?\s*$/i);
-  if (!m || (!m[2] && !m[3]) || /^\d/.test(m[1])) return null;
-  const words: Record<string, number> = { un: 1, una: 1, dos: 2, tres: 3 };
-  const key = (m[2] ?? "").toLowerCase();
-  const n = m[2] ? (words[key] ?? Number(key)) : 1;
-  return n > 0 ? { name: m[1].trim(), adults: n } : null;
+  if (m && (m[2] || m[3]) && !/^\d/.test(m[1])) {
+    const key = (m[2] ?? "").toLowerCase();
+    const n = m[2] ? (NUMBER_WORDS[key] ?? Number(key)) : 1;
+    return n > 0 ? { name: m[1].trim(), adults: n, children: 0 } : null;
+  }
+  // The first «y» / «+» / «con» after which everything is an amount («Juan y Ana y 2 niños» keeps «Juan y Ana»).
+  for (const sep of raw.matchAll(/\s*(?:\+|\by\b|\bcon\b)\s*/gi)) {
+    const name = raw.slice(0, sep.index).trim();
+    const amount = parseAmount(raw.slice(sep.index + sep[0].length));
+    if (name && !/^\d/.test(name) && amount) return { name, ...amount };
+  }
+  return null;
 }
 
 /** Splits one line by the separator, honouring "quoted, cells" (as Excel/Sheets export them). */
@@ -146,15 +158,15 @@ export function parseFamiliesImport(text: string): ImportParseResult {
   let lastKey: string | null = null;
   let firstRow = true;
   /** Totals from the «Adultos» / «Niños» columns (the largest written in any row of the family). */
-  const totals = new Map<string, { adults: number; children: number; line: number }>();
+  const totals = new Map<string, { adults: number; children: number; people: number; line: number }>();
   /** First phone written for each family, in any of its rows. */
   const phones = new Map<string, string>();
   /** Line where each family first appears, and families already warned about (to warn once). */
   const firstLines = new Map<string, number>();
   const warned = new Set<string>();
-  /** How many companions each named person brought («Juan y acompañante»), per family. */
-  const companions = new Map<string, Map<string, number>>();
-  let columns = { family: 0, member: 1, type: 2, phone: 3, adults: -1, children: -1 };
+  /** Who came with each named person («Juan y acompañante», «Ana y 2 niños»), per family. */
+  const companions = new Map<string, Map<string, { adults: number; children: number }>>();
+  let columns = { family: 0, member: 1, type: 2, phone: 3, adults: -1, children: -1, total: -1 };
 
   lines.forEach((rawLine, index) => {
     const line = index + 1;
@@ -171,15 +183,23 @@ export function parseFamiliesImport(text: string): ImportParseResult {
         // Columns in any order (e.g. Integrante | Familia | Teléfono) are mapped by their header.
         const adults = find(HEADER_ADULTS);
         const children = find(HEADER_CHILDREN);
-        const counts = adults >= 0 || children >= 0;
+        const total = find(HEADER_TOTAL);
+        const type = find(HEADER_TYPE);
+        const phone = find(HEADER_PHONE);
+        const counts = adults >= 0 || children >= 0 || total >= 0;
         // «Nombre | Adultos | Niños»: with counts and no «Familia» column, the name is the invitation's.
         const countsOnly = counts && familyCol < 0;
         const family = familyCol >= 0 ? familyCol : countsOnly ? memberCol : memberCol === 0 ? 1 : 0;
         // With «Adultos» / «Niños» columns the names are optional: no «Integrante» column is assumed.
-        const member = countsOnly ? -1 : memberCol >= 0 ? memberCol : counts ? -1 : family === 0 ? 1 : 0;
-        const used = new Set([family, member, adults, children]);
-        const type = find(HEADER_TYPE);
-        const phone = find(HEADER_PHONE);
+        // Without an «Integrante» header, the first column that is not the family, phone or type.
+        const member = countsOnly
+          ? -1
+          : memberCol >= 0
+            ? memberCol
+            : counts
+              ? -1
+              : ([0, 1, 2, 3, 4, 5].find((i) => i !== family && i !== phone && i !== type) ?? -1);
+        const used = new Set([family, member, adults, children, total]);
         const firstFree = (skip: number) => [0, 1, 2, 3, 4, 5].find((i) => !used.has(i) && i !== skip) ?? -1;
         columns = {
           family,
@@ -188,6 +208,7 @@ export function parseFamiliesImport(text: string): ImportParseResult {
           phone: phone >= 0 ? phone : type >= 0 || counts ? -1 : firstFree(firstFree(-1)),
           adults,
           children,
+          total,
         };
         return;
       }
@@ -231,8 +252,9 @@ export function parseFamiliesImport(text: string): ImportParseResult {
     const withCompanions = memberName && bareTotal === null && !amount ? splitCompanions(memberName) : null;
     const totalChildren = countCell(columns.children);
     const totalAdults = Math.max(countCell(columns.adults), (bareTotal ?? 0) - totalChildren);
+    const totalPeople = countCell(columns.total);
     let unnamedAdults = (amount?.adults ?? 0) + (withCompanions?.adults ?? 0);
-    let unnamedChildren = amount?.children ?? 0;
+    let unnamedChildren = (amount?.children ?? 0) + (withCompanions?.children ?? 0);
     const named = amount || bareTotal !== null ? "" : (withCompanions?.name ?? memberName);
     // Without a type, a name in a row that says «0» adults and some children is a child.
     const namedIsChild = typeCell ? type.isChild : cell(columns.adults).trim() === "0" && totalChildren > 0;
@@ -240,10 +262,10 @@ export function parseFamiliesImport(text: string): ImportParseResult {
       if (type.isChild) unnamedChildren = 1;
       else unnamedAdults = 1;
     }
-    if (!named && unnamedAdults + unnamedChildren + totalAdults + totalChildren === 0) {
+    if (!named && unnamedAdults + unnamedChildren + totalAdults + totalChildren + totalPeople === 0) {
       if (familyCell) lastKey = key;
       // A row with only the family's name (or zeros), in a list with «Adultos» / «Niños» columns: nothing to add.
-      if (columns.adults < 0 && columns.children < 0) {
+      if (columns.adults < 0 && columns.children < 0 && columns.total < 0) {
         warnings.push({
           line,
           message: `Fila ${line}: falta el integrante (su nombre o cuántos, por ejemplo «2 adultos y 1 niño»); se omitió.`,
@@ -251,7 +273,7 @@ export function parseFamiliesImport(text: string): ImportParseResult {
       }
       return;
     }
-    const many = Math.max(unnamedAdults + unnamedChildren, totalAdults + totalChildren);
+    const many = Math.max(unnamedAdults + unnamedChildren, totalAdults + totalChildren, totalPeople);
     if (many > MAX_PER_ROW) {
       warnings.push({ line, message: `Fila ${line}: ${many} personas en una sola fila parecen demasiadas; se omitió.` });
       warned.add(key);
@@ -271,11 +293,12 @@ export function parseFamiliesImport(text: string): ImportParseResult {
     }
     lastKey = key;
 
-    if (totalAdults + totalChildren > 0) {
+    if (totalAdults + totalChildren + totalPeople > 0) {
       const t = totals.get(key);
       totals.set(key, {
         adults: Math.max(t?.adults ?? 0, totalAdults),
         children: Math.max(t?.children ?? 0, totalChildren),
+        people: Math.max(t?.people ?? 0, totalPeople),
         line: t?.line ?? line,
       });
     }
@@ -291,26 +314,24 @@ export function parseFamiliesImport(text: string): ImportParseResult {
     const toAdd: ImportedMember[] = [];
     if (named) {
       const nameKey = normalizeText(named);
-      const brought = companions.get(key) ?? new Map<string, number>();
+      const brought = companions.get(key) ?? new Map<string, { adults: number; children: number }>();
       companions.set(key, brought);
       if (family.members.some((m) => m.name && normalizeText(m.name) === nameKey)) {
         // Repeated: only companions not added yet (the same «Juan y acompañante» twice adds one).
-        const before = brought.get(nameKey) ?? 0;
-        unnamedAdults = Math.max(0, unnamedAdults - before);
-        brought.set(nameKey, before + unnamedAdults);
+        const before = brought.get(nameKey) ?? { adults: 0, children: 0 };
+        unnamedAdults = Math.max(0, unnamedAdults - before.adults);
+        unnamedChildren = Math.max(0, unnamedChildren - before.children);
+        brought.set(nameKey, { adults: before.adults + unnamedAdults, children: before.children + unnamedChildren });
+        const extra = unnamedAdults + unnamedChildren;
         warnings.push({
           line,
           message: `Fila ${line}: ${named} aparece dos veces en ${family.name}; ${
-            unnamedAdults === 0
-              ? "se omitió la repetición"
-              : unnamedAdults === 1
-                ? "solo se agregó su acompañante"
-                : `solo se agregaron sus ${unnamedAdults} acompañantes`
+            extra === 0 ? "se omitió la repetición" : extra === 1 ? "solo se agregó su acompañante" : `solo se agregaron sus ${extra} acompañantes`
           }.`,
         });
       } else {
         toAdd.push({ name: named, isChild: namedIsChild });
-        brought.set(nameKey, unnamedAdults);
+        brought.set(nameKey, { adults: unnamedAdults, children: unnamedChildren });
       }
     }
     for (let i = 0; i < unnamedAdults; i++) toAdd.push({ name: "", isChild: false });
@@ -331,8 +352,13 @@ export function parseFamiliesImport(text: string): ImportParseResult {
     // «Adultos» / «Niños» totals: add people without a name up to them (adults after the last adult).
     const t = totals.get(family.key);
     if (!t) continue;
-    const missingAdults = Math.max(0, t.adults - family.members.filter((m) => !m.isChild).length);
     const missingChildren = Math.max(0, t.children - family.members.filter((m) => m.isChild).length);
+    // A «Pases» total that is still not reached is completed with adults.
+    const missingAdults = Math.max(
+      t.adults - family.members.filter((m) => !m.isChild).length,
+      t.people - family.members.length - missingChildren,
+      0
+    );
     const room = LIMITS.members - family.members.length;
     if (missingAdults + missingChildren > room) {
       warnings.push({
@@ -347,8 +373,8 @@ export function parseFamiliesImport(text: string): ImportParseResult {
     family.members.push(...Array.from({ length: children }, () => ({ name: "", isChild: true })));
   }
   const list = [...families.values()].filter((f) => f.members.length > 0);
-  // Lists with «Adultos» / «Niños» columns skip rows without amounts quietly: say which families were left out.
-  if (columns.adults >= 0 || columns.children >= 0) {
+  // Lists with «Adultos» / «Niños» / «Pases» columns skip rows without amounts quietly: say which families were left out.
+  if (columns.adults >= 0 || columns.children >= 0 || columns.total >= 0) {
     for (const [key, line] of firstLines) {
       if (!warned.has(key) && !list.some((f) => f.key === key)) {
         warnings.push({ line, message: `Fila ${line}: «${names.get(key)}» no tiene integrantes ni cantidades; se omitió.` });
