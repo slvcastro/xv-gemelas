@@ -79,7 +79,7 @@ export function FamiliesPanel({
       if (!test(f)) return false;
       if (!q) return true;
       if (byPhone && (f.phone ?? "").replace(/\D/g, "").includes(digits.replace(/\D/g, ""))) return true;
-      const haystack = normalizeText([f.name, f.token, f.phone ?? "", ...f.members.map((m) => m.label)].join(" | "));
+      const haystack = normalizeText([f.name, f.token, f.phone ?? "", ...f.members.map((m) => m.name)].join(" | "));
       return haystack.includes(q);
     });
   }, [families, query, filter]);

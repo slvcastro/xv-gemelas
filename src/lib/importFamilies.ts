@@ -34,23 +34,30 @@ const HEADER_CHILDREN = /^((no\.?|numero|cantidad|num\.?|#) ?(de )?)?(ninos?|nin
 /** Most people one row may add (a typo like «200 adultos» must not create a crowd). */
 const MAX_PER_ROW = 30;
 
+const NUMBER_WORDS: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
+const NUMBER = `\\d{1,3}|${Object.keys(NUMBER_WORDS).join("|")}`;
+const AMOUNT_PART = new RegExp(
+  `^(${NUMBER})?\\s*(adultos?(?: mayor(?:es)?)?|ninos?|ninas?|bebes?|menor(?:es)?|acompanantes?|personas?|invitados?|pases?|boletos?|lugares?)?$`
+);
+/** Between amounts: «y», «e», «,», «+», «/», « - », «más», or nothing before the next number («2 adultos 1 niño»). */
+const AMOUNT_SEPARATOR = new RegExp(`\\s*(?:,|\\+|/|\\s-\\s|\\by\\b|\\be\\b|\\bmas\\b)\\s*|\\s+(?=(?:${NUMBER})\\s*[a-z])`);
+
 /**
- * An amount written instead of a name: «3», «2 adultos», «1 niño», «2 adultos y 1 niño»,
- * «1 adulto + 2 niños», «acompañante», «2 acompañantes», «+1». A bare number counts as the row's type.
- * Also the panel's own labels for someone without a name («Adulto 2», «Niño 1 (sin nombre)»), so its
- * Excel can be pasted back. Null when the text is a name (a girl called «Nina» is not «niña»: a word
- * alone needs its «ñ»).
+ * An amount written instead of a name: «3», «2 adultos», «1 niño», «2 adultos y 1 niño», «2 adultos 1 niño»,
+ * «1 adulto + 2 niños», «un menor», «acompañante», «2 acompañantes», «+1», «4 pases». A bare number
+ * counts as the row's type. Also the panel's own labels for someone without a name («Adulto 2», «Niño 1
+ * (sin nombre)»), so its Excel can be pasted back. Null when the text is a name (a girl called «Nina» is
+ * not «niña»: a word alone needs its «ñ»).
  */
 export function parseAmount(raw: string, childByDefault = false): { adults: number; children: number } | null {
   let t = normalizeText(raw).replace(/[.]/g, " ").replace(/\s+/g, " ").trim();
   const unnamedMark = /\(?sin nombre\)?$/.test(t);
   t = t.replace(/\(?sin nombre\)?$/, "").trim();
   if (!t) return null;
-  const words: Record<string, number> = { un: 1, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5 };
   let adults = 0;
   let children = 0;
-  // The whole text must be amounts joined by «y», «,», «+» or «e».
-  const parts = t.split(/\s*(?:,|\+|\by\b|\be\b)\s*/).filter(Boolean);
+  // Every part must be an amount: a name anywhere means the whole text is a name.
+  const parts = t.split(AMOUNT_SEPARATOR).filter(Boolean);
   for (const part of parts) {
     // A label: «Adulto 2», «Acompañante 1», «Niño 3» is one person of that kind.
     const label = part.match(/^(adulto|nino|nina|acompanante|invitado|persona)s? \d{1,2}$/);
@@ -59,13 +66,13 @@ export function parseAmount(raw: string, childByDefault = false): { adults: numb
       else adults++;
       continue;
     }
-    const m = part.match(/^(\d{1,3}|un|una|uno|dos|tres|cuatro|cinco)?\s*(adultos?|ninos?|ninas?|menores?|acompanantes?|personas?|invitados?)?$/);
+    const m = part.match(AMOUNT_PART);
     if (!m || (!m[1] && !m[2])) return null;
     const kind = m[2] ?? "";
-    // A word with no number: only unambiguous ones («acompañante», «adulto», «niño» written with ñ).
-    if (!m[1] && !unnamedMark && !/^acompanantes?$|^adultos?$/.test(kind) && !(/^nin/.test(kind) && /ñ/i.test(raw))) return null;
-    const n = m[1] ? (words[m[1]] ?? Number(m[1])) : 1;
-    if (/^(nin|menor)/.test(kind)) children += n;
+    // A word with no number: only unambiguous ones («acompañante», «adulto», «menor», «bebé», «niño» with ñ).
+    if (!m[1] && !unnamedMark && !/^(acompanantes?|adultos?( mayor(es)?)?|menor|bebe)$/.test(kind) && !(/^nin/.test(kind) && /ñ/i.test(raw))) return null;
+    const n = m[1] ? (NUMBER_WORDS[m[1]] ?? Number(m[1])) : 1;
+    if (/^(nin|menor|bebe)/.test(kind)) children += n;
     else if (/^(adult|acompan)/.test(kind)) adults += n;
     else if (childByDefault) children += n;
     else adults += n;
@@ -142,6 +149,11 @@ export function parseFamiliesImport(text: string): ImportParseResult {
   const totals = new Map<string, { adults: number; children: number; line: number }>();
   /** First phone written for each family, in any of its rows. */
   const phones = new Map<string, string>();
+  /** Line where each family first appears, and families already warned about (to warn once). */
+  const firstLines = new Map<string, number>();
+  const warned = new Set<string>();
+  /** How many companions each named person brought («Juan y acompañante»), per family. */
+  const companions = new Map<string, Map<string, number>>();
   let columns = { family: 0, member: 1, type: 2, phone: 3, adults: -1, children: -1 };
 
   lines.forEach((rawLine, index) => {
@@ -193,7 +205,10 @@ export function parseFamiliesImport(text: string): ImportParseResult {
 
     // A blank family cell continues the family above (common when the name is written only once).
     const key: string | null = familyCell ? familyKey(familyCell) : lastKey;
-    if (familyCell && key && !names.has(key)) names.set(key, cleanText(familyCell, LIMITS.familyName));
+    if (familyCell && key && !names.has(key)) {
+      names.set(key, cleanText(familyCell, LIMITS.familyName));
+      firstLines.set(key, line);
+    }
     if (!key) {
       warnings.push({ line, message: `Fila ${line}: falta el nombre de la familia; se omitió.` });
       return;
@@ -205,17 +220,20 @@ export function parseFamiliesImport(text: string): ImportParseResult {
     const memberName = cleanText(memberCell, LIMITS.memberName);
     // Who this row adds: a person by name and/or people without a name (an amount, «y acompañante» or
     // the type alone). The «Adultos» / «Niños» columns are the family's totals, completed at the end.
-    const amount = memberName ? parseAmount(memberName, type.isChild) : null;
-    const withCompanions = memberName && !amount ? splitCompanions(memberName) : null;
     const countCell = (i: number) => {
       const raw = cell(i).replace(/\s+/g, "");
       return /^\d{1,3}$/.test(raw) ? Number(raw) : 0;
     };
-    const totalAdults = countCell(columns.adults);
+    // Next to «Adultos» / «Niños» columns, a bare number in «Integrantes» is the family's total (as in the
+    // panel's own Excel), not more people: it only fills in the adults the columns leave out.
+    const bareTotal = (columns.adults >= 0 || columns.children >= 0) && /^\d{1,3}$/.test(memberName) ? Number(memberName) : null;
+    const amount = memberName && bareTotal === null ? parseAmount(memberName, type.isChild) : null;
+    const withCompanions = memberName && bareTotal === null && !amount ? splitCompanions(memberName) : null;
     const totalChildren = countCell(columns.children);
+    const totalAdults = Math.max(countCell(columns.adults), (bareTotal ?? 0) - totalChildren);
     let unnamedAdults = (amount?.adults ?? 0) + (withCompanions?.adults ?? 0);
     let unnamedChildren = amount?.children ?? 0;
-    const named = amount ? "" : (withCompanions?.name ?? memberName);
+    const named = amount || bareTotal !== null ? "" : (withCompanions?.name ?? memberName);
     // Without a type, a name in a row that says «0» adults and some children is a child.
     const namedIsChild = typeCell ? type.isChild : cell(columns.adults).trim() === "0" && totalChildren > 0;
     if (!named && unnamedAdults + unnamedChildren === 0 && typeCell && type.known) {
@@ -236,6 +254,7 @@ export function parseFamiliesImport(text: string): ImportParseResult {
     const many = Math.max(unnamedAdults + unnamedChildren, totalAdults + totalChildren);
     if (many > MAX_PER_ROW) {
       warnings.push({ line, message: `Fila ${line}: ${many} personas en una sola fila parecen demasiadas; se omitió.` });
+      warned.add(key);
       if (familyCell) lastKey = key;
       return;
     }
@@ -244,6 +263,7 @@ export function parseFamiliesImport(text: string): ImportParseResult {
     if (!family) {
       if (families.size >= MAX_IMPORT_FAMILIES) {
         warnings.push({ line, message: `Fila ${line}: se pueden importar hasta ${MAX_IMPORT_FAMILIES} familias a la vez.` });
+        warned.add(key);
         return;
       }
       family = { key, name: names.get(key) ?? cleanText(familyCell, LIMITS.familyName), phone: "", members: [] };
@@ -261,12 +281,37 @@ export function parseFamiliesImport(text: string): ImportParseResult {
     }
 
     if (named && !type.known) warnings.push({ line, message: `Fila ${line}: no se reconoció el tipo «${typeCell}»; se tomó como adulto.` });
+    if (named && /\d/.test(named)) {
+      warnings.push({
+        line,
+        message: `Fila ${line}: «${named}» se tomó como el nombre de una persona; si es una cantidad, escríbela como «2 adultos y 1 niño».`,
+      });
+    }
 
     const toAdd: ImportedMember[] = [];
     if (named) {
-      if (family.members.some((m) => m.name && normalizeText(m.name) === normalizeText(named))) {
-        warnings.push({ line, message: `Fila ${line}: ${named} aparece dos veces en ${family.name}; se omitió la repetición.` });
-      } else toAdd.push({ name: named, isChild: namedIsChild });
+      const nameKey = normalizeText(named);
+      const brought = companions.get(key) ?? new Map<string, number>();
+      companions.set(key, brought);
+      if (family.members.some((m) => m.name && normalizeText(m.name) === nameKey)) {
+        // Repeated: only companions not added yet (the same «Juan y acompañante» twice adds one).
+        const before = brought.get(nameKey) ?? 0;
+        unnamedAdults = Math.max(0, unnamedAdults - before);
+        brought.set(nameKey, before + unnamedAdults);
+        warnings.push({
+          line,
+          message: `Fila ${line}: ${named} aparece dos veces en ${family.name}; ${
+            unnamedAdults === 0
+              ? "se omitió la repetición"
+              : unnamedAdults === 1
+                ? "solo se agregó su acompañante"
+                : `solo se agregaron sus ${unnamedAdults} acompañantes`
+          }.`,
+        });
+      } else {
+        toAdd.push({ name: named, isChild: namedIsChild });
+        brought.set(nameKey, unnamedAdults);
+      }
     }
     for (let i = 0; i < unnamedAdults; i++) toAdd.push({ name: "", isChild: false });
     for (let i = 0; i < unnamedChildren; i++) toAdd.push({ name: "", isChild: true });
@@ -302,6 +347,15 @@ export function parseFamiliesImport(text: string): ImportParseResult {
     family.members.push(...Array.from({ length: children }, () => ({ name: "", isChild: true })));
   }
   const list = [...families.values()].filter((f) => f.members.length > 0);
+  // Lists with «Adultos» / «Niños» columns skip rows without amounts quietly: say which families were left out.
+  if (columns.adults >= 0 || columns.children >= 0) {
+    for (const [key, line] of firstLines) {
+      if (!warned.has(key) && !list.some((f) => f.key === key)) {
+        warnings.push({ line, message: `Fila ${line}: «${names.get(key)}» no tiene integrantes ni cantidades; se omitió.` });
+      }
+    }
+    warnings.sort((a, b) => a.line - b.line);
+  }
   const memberCount = list.reduce((n, f) => n + f.members.length, 0);
 
   return { families: list, warnings, memberCount, headerDetected };

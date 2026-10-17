@@ -48,6 +48,11 @@ export type MemberInput = {
 export type FamilyInput = {
   name: string;
   members: MemberInput[];
+  /**
+   * When editing: the members the admin removed, as the form loaded them. If one of them answered or got
+   * a name meanwhile, nothing is saved (the form was showing someone else).
+   */
+  removed?: { id: string; name: string; rsvp: Rsvp }[];
   phone?: string;
   greeting?: string;
   notes?: string;
@@ -138,7 +143,10 @@ export async function updateFamily(id: string, data: FamilyInput): Promise<Actio
     const [inv] = await db.select({ id: invitations.id }).from(invitations).where(eq(invitations.id, id));
     if (!inv) return { success: false, error: "Esta familia ya no existe. Recarga la página." };
 
-    const existing = await db.select({ id: guests.id, rsvp: guests.rsvp }).from(guests).where(eq(guests.invitationId, id));
+    const existing = await db
+      .select({ id: guests.id, rsvp: guests.rsvp, name: guests.name })
+      .from(guests)
+      .where(eq(guests.invitationId, id));
     const existingById = new Map(existing.map((g) => [g.id, g]));
     const keptIds = new Set<string>();
     let answerRecorded = false;
@@ -168,7 +176,22 @@ export async function updateFamily(id: string, data: FamilyInput): Promise<Actio
         inserts.push({ invitationId: id, name: m.name, isChild: m.isChild, sortOrder: i, rsvp: m.rsvp ?? "pending" });
       }
     }
-    const removed = existing.filter((g) => !keptIds.has(g.id)).map((g) => g.id);
+    const removedRows = existing.filter((g) => !keptIds.has(g.id));
+    // A stale form must not delete someone who answered or was named after it opened ("−" picks among
+    // people without a name, who all looked alike there).
+    const seen = new Map((Array.isArray(data.removed) ? data.removed : []).map((m) => [m?.id, m]));
+    const changedMeanwhile = removedRows.some((g) => {
+      const before = seen.get(g.id);
+      return !before || before.rsvp !== g.rsvp || cleanText(before.name, LIMITS.memberName) !== g.name;
+    });
+    if (changedMeanwhile) {
+      revalidatePath("/admin");
+      return {
+        success: false,
+        error: "La familia respondió mientras editabas, así que no se guardó nada. Cierra y vuelve a abrir «Editar» para ver los cambios.",
+      };
+    }
+    const removed = removedRows.map((g) => g.id);
 
     if (inserts.length) queries.push(db.insert(guests).values(inserts));
     if (removed.length) queries.push(db.delete(guests).where(and(eq(guests.invitationId, id), inArray(guests.id, removed))));

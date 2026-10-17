@@ -38,7 +38,7 @@ export function ReceptionPanel({ families, notify }: { families: AdminFamily[]; 
         const waiting = f.members.some((m) => m.rsvp === "yes" && !m.checkedInAt);
         const arrived = f.members.some((m) => m.checkedInAt);
         // A search looks in every family, so staff can find someone who never confirmed.
-        if (q) return normalizeText([f.name, f.token, ...f.members.map((m) => m.label)].join(" | ")).includes(q);
+        if (q) return normalizeText([f.name, f.token, ...f.members.map((m) => m.name)].join(" | ")).includes(q);
         if (filter === "waiting") return waiting;
         if (filter === "arrived") return arrived;
         return true;

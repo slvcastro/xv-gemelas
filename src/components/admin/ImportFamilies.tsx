@@ -108,7 +108,7 @@ export function ImportFamilies({
                 Se agregarán <strong className="text-gold">{plural(toCreate.length, "familia", "familias")}</strong> con{" "}
                 <strong className="text-gold">{plural(members, "integrante", "integrantes")}</strong> ({plural(members - children, "adulto", "adultos")},{" "}
                 {plural(children, "niño", "niños")}
-                {unnamed > 0 && <>; {unnamed === members ? "todos" : unnamed} sin nombre</>}).
+                {unnamed > 0 && <>; {unnamed === members && unnamed > 1 ? "todos" : unnamed} sin nombre</>}).
               </>
             ) : (
               "Todavía no hay familias nuevas para agregar."

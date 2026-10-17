@@ -4,7 +4,7 @@ const STEPS = [
   {
     icon: UserPlus,
     title: "Agrega a tus invitados por familia",
-    text: "Escribe el nombre de la familia y quiénes la integran (adultos y niños). Si no sabes sus nombres, basta con cuántos adultos y niños. Puedes hacerlo una por una o pegar tu lista desde Excel.",
+    text: "Escribe el nombre de la familia y quiénes la integran (adultos y niños). Si no sabes sus nombres, basta con indicar cuántos adultos y niños son. Puedes hacerlo una por una o pegar tu lista desde Excel.",
   },
   {
     icon: MessageCircle,
@@ -14,7 +14,7 @@ const STEPS = [
   {
     icon: UserCheck,
     title: "Ellos confirman por persona",
-    text: "Al abrir su invitación ven sus nombres y tocan Asistirá, No asistirá o Por definir para cada uno. A quien invitaste sin nombre le pueden escribir el suyo (es opcional).",
+    text: "Al abrir su invitación ven sus nombres y tocan Asistirá, No asistirá o Por definir para cada uno. Si invitaste a alguien sin nombre, su familia puede escribirlo al confirmar (es opcional).",
   },
   {
     icon: FileSpreadsheet,

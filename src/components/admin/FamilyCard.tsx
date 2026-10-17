@@ -121,7 +121,10 @@ export function FamilyCard({
               {hasName(m) ? (
                 <span className="font-sans text-sm text-blue-ice/95">{m.name}</span>
               ) : (
-                <span className="font-sans text-sm italic text-blue-mist" title="Sin nombre: la familia puede escribirlo al confirmar">
+                <span
+                  className="font-sans text-sm italic text-blue-mist"
+                  title={family.members.length > 1 ? "Sin nombre: la familia puede escribirlo al confirmar" : "Sin nombre"}
+                >
                   {m.label}
                 </span>
               )}

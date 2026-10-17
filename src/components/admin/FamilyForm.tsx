@@ -22,6 +22,11 @@ type Row = {
   rsvp: Rsvp;
   /** Answer stored in the database, to ask before removing someone who already answered. */
   savedRsvp?: Rsvp;
+  /**
+   * Added with «Agregar integrante» or Enter, to type a name: it is not a member until it gets one (an
+   * empty row left behind is not saved as an extra person). The steppers add unnamed members instead.
+   */
+  draft?: boolean;
 };
 
 let nextKey = 0;
@@ -56,6 +61,8 @@ export function FamilyForm({
         }))
       : [newRow()]
   );
+  // What the form loaded, so the server can tell if someone removed here changed meanwhile (updateFamily).
+  const [loaded] = useState(() => family?.members.map((m) => ({ id: m.id, name: m.name, rsvp: m.rsvp })) ?? []);
   const [phone, setPhone] = useState(family?.phone ?? "");
   // Families without a saved message (new or imported) show the suggestion they actually receive.
   const [greeting, setGreeting] = useState(family?.greeting ?? GREETING_SUGGESTIONS[0].plural);
@@ -72,7 +79,8 @@ export function FamilyForm({
   const update = (key: number, patch: Partial<Row>) => setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
   const addRow = () => {
-    const row = newRow();
+    if (rows.length >= LIMITS.members) return;
+    const row: Row = { ...newRow(), draft: true };
     focusKey.current = row.key;
     setRows((prev) => [...prev, row]);
   };
@@ -105,7 +113,7 @@ export function FamilyForm({
    * with their own ✕, so a name typed by hand is never lost by a tap on «−».
    */
   const unnamedToRemove = (isChild: boolean) => {
-    const candidates = rows.filter((r) => r.isChild === isChild && !hasName(r));
+    const candidates = members.filter((r) => r.isChild === isChild && !hasName(r));
     return candidates.findLast((r) => !r.savedRsvp || r.savedRsvp === "pending") ?? candidates.at(-1);
   };
 
@@ -119,14 +127,18 @@ export function FamilyForm({
     }
   };
 
-  const adults = rows.filter((r) => !r.isChild).length;
-  const children = rows.length - adults;
-  const unnamed = rows.filter((r) => !hasName(r)).length;
-  // How each row is called while it has no name ("Adulto 2", "Acompañante", "Niño 1"…), as the family will see it.
-  const labels = memberLabels(rows);
+  // The people invited: every row but an empty «Agregar integrante» one (at least one row always counts).
+  const members = rows.some((r) => !r.draft || hasName(r)) ? rows.filter((r) => !r.draft || hasName(r)) : rows.slice(0, 1);
+  const adults = members.filter((r) => !r.isChild).length;
+  const children = members.length - adults;
+  const unnamed = members.filter((r) => !hasName(r)).length;
+  // How each one is called while it has no name ("Adulto 2", "Acompañante", "Niño 1"…), as the family will see it.
+  const labelList = memberLabels(members);
+  const labelOf = new Map(members.map((r, i) => [r.key, labelList[i]]));
+  const numberOf = new Map(members.map((r, i) => [r.key, i + 1]));
   // A suggested message follows the family size (singular for one person) until the admin edits it.
   const suggestion = findSuggestion(greeting);
-  const shownGreeting = suggestion ? suggestionText(suggestion, rows.length) : greeting;
+  const shownGreeting = suggestion ? suggestionText(suggestion, members.length) : greeting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,13 +153,14 @@ export function FamilyForm({
       // Every row is a member, with or without a name. Only answers the admin actually changed are sent,
       // so a stale form never overwrites what the family answered while it was open (the same for names
       // through originalName).
-      members: rows.map((r) => ({
+      members: members.map((r) => ({
         id: r.id,
         name: r.name,
         originalName: r.originalName,
         isChild: r.isChild,
         ...(editing && r.rsvp !== r.savedRsvp && { rsvp: r.rsvp }),
       })),
+      ...(editing && { removed: loaded.filter((m) => !members.some((r) => r.id === m.id)) }),
       // Only when changed here (see updateFamily): the family may have updated it from their invitation.
       ...((!editing || phone !== (family?.phone ?? "")) && { phone }),
       greeting: shownGreeting,
@@ -197,8 +210,8 @@ export function FamilyForm({
       <fieldset>
         <legend className={labelCls}>
           Integrantes * <span className="normal-case tracking-normal text-blue-mist/80">
-            ({plural(rows.length, "persona", "personas")}
-            {unnamed > 0 && ` · ${unnamed === rows.length && unnamed > 1 ? "todas" : unnamed} sin nombre`})
+            ({plural(members.length, "persona", "personas")}
+            {unnamed > 0 && ` · ${unnamed === members.length && unnamed > 1 ? "todas" : unnamed} sin nombre`})
           </span>
         </legend>
 
@@ -219,7 +232,7 @@ export function FamilyForm({
                   <button
                     type="button"
                     onClick={() => toRemove && askRemove(toRemove)}
-                    disabled={!toRemove || rows.length === 1}
+                    disabled={!toRemove || members.length === 1}
                     title={removeHint}
                     aria-label={`Quitar un ${one}`}
                     className={stepBtn}
@@ -249,7 +262,7 @@ export function FamilyForm({
             <li key={row.key} className="border border-gold/15 bg-navy/40 p-2.5">
               <div className="flex items-center gap-2">
                 <span className="w-5 shrink-0 text-center font-sans text-xs text-blue-mist" aria-hidden="true">
-                  {index + 1}
+                  {numberOf.get(row.key) ?? "+"}
                 </span>
                 <input
                   ref={(el) => {
@@ -262,9 +275,9 @@ export function FamilyForm({
                     } else inputs.current.delete(row.key);
                   }}
                   value={row.name}
-                  onChange={(e) => update(row.key, { name: e.target.value })}
+                  onChange={(e) => update(row.key, { name: e.target.value, ...(e.target.value.trim() && { draft: false }) })}
                   onKeyDown={(e) => onNameKeyDown(e, index)}
-                  placeholder={`${labels[index]} (sin nombre)`}
+                  placeholder={labelOf.has(row.key) ? `${labelOf.get(row.key)} (sin nombre)` : "Nombre y apellido"}
                   aria-label={`Nombre del integrante ${index + 1} (opcional)`}
                   maxLength={LIMITS.memberName}
                   autoComplete="off"
@@ -275,14 +288,14 @@ export function FamilyForm({
                   type="button"
                   onClick={() => askRemove(row)}
                   className="flex h-10 w-10 shrink-0 items-center justify-center text-blue-mist transition-colors hover:text-red-200"
-                  aria-label={`Quitar a ${labels[index]}`}
+                  aria-label={`Quitar a ${labelOf.get(row.key) ?? `integrante ${index + 1}`}`}
                 >
                   <X size={18} />
                 </button>
               </div>
 
               <div className="mt-2 flex flex-wrap items-center gap-2 pl-7">
-                <div className="inline-flex border border-gold/40" role="group" aria-label={`Tipo de ${labels[index]}`}>
+                <div className="inline-flex border border-gold/40" role="group" aria-label={`Tipo de ${labelOf.get(row.key) ?? `integrante ${index + 1}`}`}>
                   {(
                     [
                       [false, "Adulto"],
@@ -307,7 +320,7 @@ export function FamilyForm({
                   <select
                     value={row.rsvp}
                     onChange={(e) => update(row.key, { rsvp: e.target.value as Rsvp })}
-                    aria-label={`Respuesta de ${labels[index]}`}
+                    aria-label={`Respuesta de ${labelOf.get(row.key) ?? `integrante ${index + 1}`}`}
                     className="min-h-9 border border-gold/25 bg-navy px-2 font-sans text-xs text-blue-ice outline-none focus:border-gold"
                   >
                     {(["yes", "no", "pending"] as const).map((v) => (
@@ -326,8 +339,8 @@ export function FamilyForm({
                 <div role="alert" className="mt-2 border border-amber-300/40 bg-amber-400/10 px-3 py-2 font-sans text-xs text-amber-100">
                   <p>
                     {row.savedRsvp === "yes"
-                      ? `${labels[index]} ya confirmó que asistirá.`
-                      : `${labels[index]} ya respondió que no asistirá.`}{" "}
+                      ? `${labelOf.get(row.key)} ya confirmó que asistirá.`
+                      : `${labelOf.get(row.key)} ya respondió que no asistirá.`}{" "}
                     ¿Quitarlo de la familia?
                   </p>
                   <div className="mt-2 flex gap-2">
@@ -355,8 +368,8 @@ export function FamilyForm({
           <p className="mt-2 font-sans text-[11px] text-amber-100/90">Llegaste al máximo de {LIMITS.members} integrantes por familia.</p>
         )}
         <p className="mt-1.5 font-sans text-[11px] leading-relaxed text-blue-mist/80">
-          ¿No sabes sus nombres? Basta con cuántos adultos y niños (+ y −): la familia podrá escribirlos al confirmar. Al escribir el
-          último nombre, presiona Enter para agregar otro.
+          ¿No sabes sus nombres? Basta con indicar cuántos adultos y niños son (+ y −); si son dos o más, la familia podrá escribirlos
+          al confirmar. Al escribir el último nombre, presiona Enter para agregar otro.
         </p>
       </fieldset>
 
@@ -401,7 +414,7 @@ export function FamilyForm({
                 key={s.label}
                 type="button"
                 aria-pressed={active}
-                onClick={() => setGreeting(suggestionText(s, rows.length))}
+                onClick={() => setGreeting(suggestionText(s, members.length))}
                 className={`min-h-8 border px-2.5 font-sans text-[11px] transition-colors ${
                   active ? "border-gold bg-gold/15 text-gold" : "border-gold/25 text-blue-ice/90 hover:border-gold/60 hover:text-gold"
                 }`}
