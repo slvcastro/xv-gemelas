@@ -316,7 +316,6 @@ function blendTo(index: number, seconds: number, announce: boolean) {
     .play()
     .then(() => {
       if (seq !== switchSeq) return;
-      broken.clear();
       if (state.status !== "playing" && state.status !== "loading") return; // paused meanwhile
       const length = Math.max(MUSIC.minFade, seconds);
       incoming.fader.fade(levelOf(index), length);
@@ -385,7 +384,6 @@ function play(fadeSeconds: number, announce: boolean) {
     .play()
     .then(() => {
       if (seq !== playSeq) return; // paused or skipped while it was loading
-      broken.clear();
       update({ status: "playing", ...(announce ? { announce: Date.now() } : {}) });
       if (deck.fader.target !== levelOf(deck.index)) deck.fader.fade(levelOf(deck.index), MUSIC.minFade);
       master?.fade(1, fadeSeconds);
@@ -573,7 +571,7 @@ export function toggleMusic(on?: boolean) {
   if (want && !playing) {
     writePref("on");
     unlock(idle()); // within this tap, so the second deck can blend in later (iPhone)
-    if (broken.size >= playlist.length) broken.clear(); // every song failed before: try them again
+    broken.clear(); // the guest asked for music: songs that failed before get another chance
     play(MUSIC.resumeFade, false);
   } else if (!want && playing) {
     writePref("off");
