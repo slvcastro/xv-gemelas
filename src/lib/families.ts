@@ -87,6 +87,58 @@ export function joinNames(names: string[]) {
 
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/**
+ * Members may be invited without a name (the admin only knew how many adults and children come): their
+ * name is "" until the admin or the family writes it.
+ */
+export type MemberLike = { name: string; isChild: boolean };
+export const hasName = (m: { name: string }) => m.name.trim().length > 0;
+
+/**
+ * How to call each member (same order as `members`). Members with a name, by their name. The rest:
+ * "Adulto 1", "Niño 2"… when nobody in the family has a name; "Acompañante 1"… and "Niño 1"… when
+ * someone does ("Ana Pérez y acompañante"); without a number when there is only one of that kind. A
+ * family of one person without a name is called by the family's name.
+ */
+export function memberLabels(members: MemberLike[], familyName?: string): string[] {
+  const anyNamed = members.some(hasName);
+  if (!anyNamed && members.length === 1 && familyName?.trim()) return [familyName.trim()];
+  const unnamed = { adult: 0, child: 0 };
+  for (const m of members) if (!hasName(m)) unnamed[m.isChild ? "child" : "adult"]++;
+  const seen = { adult: 0, child: 0 };
+  return members.map((m) => {
+    if (hasName(m)) return m.name.trim();
+    const kind = m.isChild ? "child" : "adult";
+    const n = ++seen[kind];
+    const word = m.isChild ? "Niño" : anyNamed ? "Acompañante" : "Adulto";
+    return unnamed[kind] > 1 ? `${word} ${n}` : word;
+  });
+}
+
+/**
+ * A group of members in words, as a list: each name, then the people without a name grouped
+ * ("2 acompañantes", "1 niño"; "3 adultos" when nobody in the family has a name). `anyNamed` tells
+ * whether someone in the whole family has a name (the group may be only part of it).
+ */
+export function groupMembers(members: MemberLike[], anyNamed = members.some(hasName)): string[] {
+  const parts = members.filter(hasName).map((m) => m.name.trim());
+  const adults = members.filter((m) => !hasName(m) && !m.isChild).length;
+  const children = members.filter((m) => !hasName(m) && m.isChild).length;
+  if (adults) parts.push(anyNamed ? plural(adults, "acompañante", "acompañantes") : plural(adults, "adulto", "adultos"));
+  if (children) parts.push(plural(children, "niño", "niños"));
+  return parts;
+}
+
+/** The members with `label` added (see memberLabels), for lists that show everyone. */
+export function withLabels<T extends MemberLike>(members: T[], familyName?: string): (T & { label: string })[] {
+  const labels = memberLabels(members, familyName);
+  return members.map((m, i) => ({ ...m, label: labels[i] }));
+}
+
+/** Who the places are reserved for: the group in words; one person, by their label. */
+export const reservedParts = (members: MemberLike[], familyName?: string) =>
+  members.length === 1 ? memberLabels(members, familyName) : groupMembers(members);
+
 export const cleanText = (value: unknown, max: number) =>
   String(value ?? "")
     .replace(/\s+/g, " ")

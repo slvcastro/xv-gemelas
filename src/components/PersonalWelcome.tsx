@@ -4,6 +4,7 @@ import { CornerTicks, Ornament, Sparkle, fxDelay } from "@/components/decor";
 import { SignedName } from "@/components/emblem";
 import { InView } from "@/components/InView";
 import { InkWords, inkDuration } from "@/components/ink";
+import { hasName, reservedParts, type MemberLike } from "@/lib/families";
 import { formatLongDate } from "@/lib/format";
 import { defaultGreeting } from "@/lib/greetings";
 
@@ -12,31 +13,38 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
 /**
  * Personal welcome right after the cover. When it scrolls into view the page "comes alive" for the
  * family: their name is written in gold ink, the message appears word by word, Kelly & Kyara sign
- * it with the pen, and the names of the people invited appear one by one. Server component: the
- * motion is CSS (globals.css), started by InView; with reduced motion everything is simply shown.
+ * it with the pen, and the names of the people invited appear one by one (people invited without a
+ * name are grouped: "2 acompañantes", "1 niño"). Server component: the motion is CSS (globals.css),
+ * started by InView; with reduced motion everything is simply shown.
  */
 export function PersonalWelcome({
   familyName,
   greeting,
-  memberNames,
+  members,
   responded,
   deadline,
 }: {
   familyName: string;
   greeting: string | null;
-  memberNames: string[];
+  members: MemberLike[];
   responded: boolean;
   deadline: Date | null;
 }) {
-  const single = memberNames.length === 1;
-  const message = greeting?.trim() || defaultGreeting(memberNames.length);
+  const single = members.length === 1;
+  const message = greeting?.trim() || defaultGreeting(members.length);
+  // Nobody has a name yet: "4 lugares para ustedes", listing how many only when there are children.
+  const anyNamed = members.some(hasName);
+  const lines = anyNamed || single || members.some((m) => m.isChild) ? reservedParts(members, familyName) : [];
+  const reservedTitle = single
+    ? "Hemos reservado un lugar para:"
+    : `Hemos reservado ${members.length} lugares para${anyNamed ? ":" : lines.length ? " ustedes:" : " ustedes"}`;
   const deadlineLabel = formatLongDate(deadline);
 
   // Timeline of the greeting (seconds after the card enters the screen), about 3 s in total.
   const nameStart = 0.35;
   const nameEnd = nameStart + inkDuration(familyName, 0.06, 1.2) + 0.1;
-  const lines = message.split(/\n+/).map((line) => line.trim().split(/\s+/).filter(Boolean));
-  const wordCount = lines.reduce((n, l) => n + l.length, 0) || 1;
+  const messageLines = message.split(/\n+/).map((line) => line.trim().split(/\s+/).filter(Boolean));
+  const wordCount = messageLines.reduce((n, l) => n + l.length, 0) || 1;
   const perWord = Math.min(0.04, 1.1 / wordCount);
   const msgStart = nameEnd + 0.25;
   const msgEnd = msgStart + wordCount * perWord + 0.2;
@@ -45,7 +53,7 @@ export function PersonalWelcome({
   // Delay of every word of the message, in reading order.
   const wordDelays: number[][] = [];
   let k = 0;
-  for (const line of lines) wordDelays.push(line.map(() => r2(msgStart + k++ * perWord)));
+  for (const line of messageLines) wordDelays.push(line.map(() => r2(msgStart + k++ * perWord)));
 
   return (
     <section id="bienvenida" className="relative w-full scroll-mt-4 overflow-hidden bg-blue-dark/40 px-4 py-20 sm:px-6 md:py-24">
@@ -67,12 +75,12 @@ export function PersonalWelcome({
           <Ornament className="mx-auto mt-4 h-6 w-40" delay={r2(nameEnd)} />
 
           <p className="mx-auto mt-6 max-w-md text-pretty font-serif text-lg italic leading-relaxed text-blue-ice/90 md:text-xl">
-            {lines.map((line, li) => (
+            {messageLines.map((line, li) => (
               <Fragment key={li}>
                 {li > 0 && <br />}
                 {line.map((word, wi) => {
                   const first = li === 0 && wi === 0;
-                  const last = li === lines.length - 1 && wi === line.length - 1;
+                  const last = li === messageLines.length - 1 && wi === line.length - 1;
                   return (
                     <Fragment key={wi}>
                       {wi > 0 && " "}
@@ -101,21 +109,23 @@ export function PersonalWelcome({
           {/* The list and the button have their own trigger: they play when the guest reaches them. */}
           <InView finishOnTap>
             <p className="eyebrow fx-in text-blue-mist" style={fxDelay(0.1)}>
-              {single ? "Hemos reservado un lugar para:" : `Hemos reservado ${memberNames.length} lugares para:`}
+              {reservedTitle}
             </p>
-            <ul className="mt-4 space-y-1.5">
-              {memberNames.map((name, i) => (
-                <li
-                  key={i}
-                  className="fx-in text-balance font-serif text-xl leading-snug text-blue-ice md:text-[1.375rem]"
-                  style={fxDelay(r2(0.25 + i * 0.1))}
-                >
-                  {name}
-                </li>
-              ))}
-            </ul>
+            {lines.length > 0 && (
+              <ul className="mt-4 space-y-1.5">
+                {lines.map((name, i) => (
+                  <li
+                    key={i}
+                    className="fx-in text-balance font-serif text-xl leading-snug text-blue-ice md:text-[1.375rem]"
+                    style={fxDelay(r2(0.25 + i * 0.1))}
+                  >
+                    {name}
+                  </li>
+                ))}
+              </ul>
+            )}
 
-            <div className="fx-in" style={fxDelay(r2(0.35 + memberNames.length * 0.1))}>
+            <div className="fx-in" style={fxDelay(r2(0.35 + lines.length * 0.1))}>
               <a
                 href="#confirmar"
                 className="mt-10 inline-flex min-h-11 items-center justify-center whitespace-nowrap bg-foil px-6 py-3 font-sans text-[11px] font-medium uppercase tracking-[0.22em] text-navy shadow-lg transition-transform hover:scale-[1.03] min-[360px]:px-8 min-[360px]:tracking-[0.3em]"

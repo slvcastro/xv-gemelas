@@ -3,7 +3,12 @@ import type { FamilyStatus, Rsvp } from "@/lib/families";
 
 export type AdminMember = {
   id: string;
+  /** "" when invited without a name. */
   name: string;
+  /** How to show them: the name, or "Adulto 1", "Acompañante", "Niño 2"… (memberLabels). */
+  label: string;
+  /** The family wrote the name on their invitation. */
+  nameFromGuest: boolean;
   isChild: boolean;
   rsvp: Rsvp;
   dietaryRestrictions: string | null;

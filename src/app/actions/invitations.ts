@@ -1,13 +1,19 @@
 "use server";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { db } from "@/db";
 import { guests, invitations } from "@/db/schema";
 import { LIMITS, cleanMultiline, cleanPhone, cleanText, isRsvp, type Rsvp } from "@/lib/families";
 import { loadPublicMembers, normalizeToken, recalcFamily, type PublicMember } from "@/lib/invitations";
 
-export type RSVPAnswer = { id: string; rsvp: Rsvp; dietaryRestrictions?: string };
+export type RSVPAnswer = {
+  id: string;
+  rsvp: Rsvp;
+  dietaryRestrictions?: string;
+  /** Only for someone invited without a name, or whose name the family wrote ("" clears it). */
+  name?: string;
+};
 
 export type RSVPPayload = {
   members: RSVPAnswer[];
@@ -27,9 +33,11 @@ export type RSVPResult = { success: true; saved: SavedRSVP } | { success: false;
 
 /**
  * Saves the answer of each member of a family (Asistirá / No asistirá / Por definir) plus the optional
- * song, message and phone. Guests never send names: only ids of their own members, which are checked
- * against the family of the token. Everything is written in one transaction and the family status is
- * recalculated in the same batch.
+ * song, message and phone. Answers carry ids of their own members, which are checked against the family
+ * of the token. A name is accepted only for someone the hosts invited without one, or to correct a name
+ * the family wrote before: a name written by the hosts never changes from here (checked in the UPDATE
+ * itself, so it holds even if the admin names that person while the page is open). Everything is written
+ * in one transaction and the family status is recalculated in the same batch.
  */
 export async function submitRSVP(rawToken: string, payload: RSVPPayload): Promise<RSVPResult> {
   try {
@@ -46,12 +54,16 @@ export async function submitRSVP(rawToken: string, payload: RSVPPayload): Promis
     );
 
     // Last answer per id wins; ids of other families (or members removed meanwhile) are ignored.
-    const answers = new Map<string, { rsvp: Rsvp; dietary: string | null }>();
+    const answers = new Map<string, { rsvp: Rsvp; dietary: string | null; name?: string }>();
     const list = Array.isArray(payload?.members) ? payload.members.slice(0, 100) : [];
     for (const answer of list) {
       if (!answer || typeof answer.id !== "string" || !familyIds.has(answer.id)) continue;
       if (!isRsvp(answer.rsvp)) return { success: false, error: "Elige una respuesta válida para cada persona." };
-      answers.set(answer.id, { rsvp: answer.rsvp, dietary: cleanText(answer.dietaryRestrictions, LIMITS.dietary) || null });
+      answers.set(answer.id, {
+        rsvp: answer.rsvp,
+        dietary: cleanText(answer.dietaryRestrictions, LIMITS.dietary) || null,
+        ...(typeof answer.name === "string" && { name: cleanText(answer.name, LIMITS.memberName) }),
+      });
     }
     // The form sends only the answers this person changed (so two relatives answering from different
     // phones don't overwrite each other); answers that all point to removed members mean a stale page.
@@ -65,12 +77,19 @@ export async function submitRSVP(rawToken: string, payload: RSVPPayload): Promis
       payload?.guestMessage === undefined ? undefined : cleanMultiline(payload.guestMessage, LIMITS.guestMessage) || null;
     const phone = cleanPhone(payload?.phone);
 
-    const queries: BatchItem<"pg">[] = [...answers].map(([id, a]) =>
-      db
-        .update(guests)
-        .set({ rsvp: a.rsvp, dietaryRestrictions: a.dietary })
-        .where(and(eq(guests.id, id), eq(guests.invitationId, inv.id)))
-    );
+    const queries: BatchItem<"pg">[] = [];
+    for (const [id, a] of answers) {
+      const member = and(eq(guests.id, id), eq(guests.invitationId, inv.id));
+      queries.push(db.update(guests).set({ rsvp: a.rsvp, dietaryRestrictions: a.dietary }).where(member));
+      if (a.name !== undefined) {
+        queries.push(
+          db
+            .update(guests)
+            .set({ name: a.name, nameFromGuest: a.name !== "" })
+            .where(and(member, or(eq(guests.name, ""), eq(guests.nameFromGuest, true))))
+        );
+      }
+    }
     queries.push(
       db
         .update(invitations)

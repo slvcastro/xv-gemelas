@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, RotateCcw, ScanLine, ShieldAlert, XCircle } from "lucide-react";
 import { registerEntrance, undoEntrance } from "@/app/actions/checkin";
-import { RSVP_LABELS, joinNames, plural } from "@/lib/families";
+import { RSVP_LABELS, hasName, joinNames, plural } from "@/lib/families";
 import { formatTime } from "@/lib/format";
 import type { CheckInFamily, CheckInMember } from "@/lib/invitations";
 import { ConfirmDialog } from "./ui";
@@ -23,7 +23,7 @@ const BACK = "/admin?tab=recepcion";
 const waitingIds = (family: CheckInFamily | null) =>
   family ? family.members.filter((m) => m.rsvp === "yes" && !m.checkedInAt).map((m) => m.id) : [];
 
-const names = (members: CheckInMember[]) => joinNames(members.map((m) => m.name));
+const names = (members: CheckInMember[]) => joinNames(members.map((m) => m.label));
 
 /**
  * Full-screen door check-in for one family (the QR is per family, the entrance per member):
@@ -216,7 +216,7 @@ export function CheckInClient({ token, family: initialFamily, loadError }: { tok
           </p>
           <ul className="mt-4 space-y-1 font-serif text-xl">
             {registered.map((m) => (
-              <li key={m.id}>{m.name}</li>
+              <li key={m.id}>{m.label}</li>
             ))}
           </ul>
           {already.length > 0 && (
@@ -370,7 +370,7 @@ export function CheckInClient({ token, family: initialFamily, loadError }: { tok
           <div className="mt-8 w-full max-w-sm border border-white/40 px-4 py-3 text-left font-sans text-sm">
             <p>
               <strong>No {notConfirmed.length === 1 ? "confirmó" : "confirmaron"}:</strong>{" "}
-              {notConfirmed.map((m) => `${m.name} (${RSVP_LABELS[m.rsvp].toLowerCase()})`).join(", ")}.
+              {notConfirmed.map((m) => `${m.label} (${RSVP_LABELS[m.rsvp].toLowerCase()})`).join(", ")}.
             </p>
             <button type="button" onClick={() => openOverride()} className="mt-2 min-h-10 font-semibold underline underline-offset-4">
               Permitir de todos modos
@@ -398,7 +398,7 @@ export function CheckInClient({ token, family: initialFamily, loadError }: { tok
           {inside.map((m) => (
             <li key={m.id} className="flex min-h-14 items-center justify-between gap-3 border-2 border-navy/25 bg-white/30 px-4 py-2 text-left">
               <span>
-                <span className="block font-serif text-xl leading-tight">{m.name}</span>
+                <span className="block font-serif text-xl leading-tight">{m.label}</span>
                 <span className="font-sans text-sm">Entró a las {formatTime(m.checkedInAt)}</span>
               </span>
               <button
@@ -406,7 +406,7 @@ export function CheckInClient({ token, family: initialFamily, loadError }: { tok
                 onClick={() => setConfirmUndo([m.id])}
                 disabled={busy}
                 className="inline-flex min-h-11 shrink-0 items-center gap-1.5 border border-navy/50 px-3 font-sans text-xs font-semibold uppercase tracking-[0.1em] disabled:opacity-50"
-                aria-label={`Deshacer la entrada de ${m.name}`}
+                aria-label={`Deshacer la entrada de ${m.label}`}
               >
                 <RotateCcw size={14} aria-hidden="true" /> Deshacer
               </button>
@@ -447,7 +447,7 @@ export function CheckInClient({ token, family: initialFamily, loadError }: { tok
         <ul className="mt-4 space-y-1 font-sans text-base">
           {family.members.map((m) => (
             <li key={m.id}>
-              <span className="font-serif text-xl">{m.name}</span> · {RSVP_LABELS[m.rsvp]}
+              <span className="font-serif text-xl">{m.label}</span> · {RSVP_LABELS[m.rsvp]}
             </li>
           ))}
         </ul>
@@ -490,9 +490,10 @@ function PersonCheck({
     >
       <input type="checkbox" checked={checked} onChange={onToggle} className="h-7 w-7 shrink-0 accent-white" />
       <span className="min-w-0 flex-1">
-        <span className="block font-serif text-2xl leading-tight">{member.name}</span>
-        {(member.isChild || detail) && (
-          <span className="font-sans text-sm opacity-90">{[member.isChild && "Niño", detail].filter(Boolean).join(" · ")}</span>
+        <span className="block font-serif text-2xl leading-tight">{member.label}</span>
+        {/* "Niño 2" (no name) already says it. */}
+        {((member.isChild && hasName(member)) || detail) && (
+          <span className="font-sans text-sm opacity-90">{[member.isChild && hasName(member) && "Niño", detail].filter(Boolean).join(" · ")}</span>
         )}
       </span>
     </label>
@@ -507,7 +508,7 @@ function MemberTimes({ members, title }: { members: CheckInMember[]; title?: str
       <ul className="space-y-1">
         {members.map((m) => (
           <li key={m.id} className="flex justify-between gap-3 border-b border-current/20 py-1">
-            <span>{m.name}</span>
+            <span>{m.label}</span>
             <span className="shrink-0 opacity-90">{formatTime(m.checkedInAt)}</span>
           </li>
         ))}

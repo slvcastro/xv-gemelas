@@ -6,6 +6,7 @@ import { AdminDashboard, type AdminTab } from "@/components/admin/AdminDashboard
 import type { AdminFamily, AdminMedia, AdminSong } from "@/components/admin/types";
 import { db } from "@/db";
 import { invitations, guests, media, settings, songs } from "@/db/schema";
+import { withLabels } from "@/lib/families";
 import { formatDateTime, formatTime } from "@/lib/format";
 import { getDeadline, memberOrder } from "@/lib/invitations";
 import { cleanMusicSettings } from "@/lib/music";
@@ -64,9 +65,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     checkedInAt: formatTime(inv.checkedInAt),
     songRequest: inv.songRequest,
     guestMessage: inv.guestMessage,
-    members: (membersByFamily.get(inv.id) ?? []).map((g) => ({
+    members: withLabels(membersByFamily.get(inv.id) ?? []).map((g) => ({
       id: g.id,
       name: g.name,
+      label: g.label,
+      nameFromGuest: g.nameFromGuest,
       isChild: g.isChild,
       rsvp: g.rsvp,
       dietaryRestrictions: g.dietaryRestrictions,

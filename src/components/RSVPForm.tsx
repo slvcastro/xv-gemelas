@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { CalendarClock, Check, CircleHelp, Music, Pencil, Plus, X } from "lucide-react";
 import { submitRSVP, type SavedRSVP } from "@/app/actions/invitations";
 import { CornerTicks } from "@/components/decor";
-import { LIMITS, joinNames, type Rsvp } from "@/lib/families";
+import { LIMITS, cleanText, hasName, joinNames, memberLabels, type Rsvp } from "@/lib/families";
 import { formatLongDateWeekday } from "@/lib/format";
 import type { PublicMember } from "@/lib/invitations";
 
@@ -66,6 +66,15 @@ const answersFrom = (members: PublicMember[], responded: boolean) =>
 const dietaryFrom = (members: PublicMember[]) =>
   Object.fromEntries(members.map((m) => [m.id, m.dietaryRestrictions ?? ""])) as Record<string, string>;
 
+const namesFrom = (members: PublicMember[]) => Object.fromEntries(members.map((m) => [m.id, m.name])) as Record<string, string>;
+
+/**
+ * Someone invited without a name (only "adult" or "child") can be named by the family, and a name the
+ * family wrote can be corrected; a name written by the hosts cannot. A family of one is already called
+ * by its own name, so it is not asked.
+ */
+const canName = (m: PublicMember, single: boolean) => !single && (!hasName(m) || m.nameFromGuest);
+
 export const RSVPForm = ({
   token,
   familyName,
@@ -86,6 +95,7 @@ export const RSVPForm = ({
   const [hasSaved, setHasSaved] = useState(responded);
   const [answers, setAnswers] = useState(() => answersFrom(members, responded));
   const [dietary, setDietary] = useState(() => dietaryFrom(members));
+  const [names, setNames] = useState(() => namesFrom(members));
   const [openDietary, setOpenDietary] = useState<Record<string, boolean>>({});
   const [song, setSong] = useState(initialSong ?? "");
   const [message, setMessage] = useState(initialMessage ?? "");
@@ -95,6 +105,9 @@ export const RSVPForm = ({
   const [error, setError] = useState<string | null>(null);
 
   const current = saved.members;
+  // How each person is called: their name, or "Acompañante 1", "Niño 2"… (the family's name for one person).
+  const labels = memberLabels(current, familyName);
+  const labelOf = (id: string) => labels[current.findIndex((m) => m.id === id)] ?? "";
 
   const setAnswer = (id: string, value: Rsvp) => {
     setAnswers((prev) => ({ ...prev, [id]: value }));
@@ -114,6 +127,7 @@ export const RSVPForm = ({
   const startEditing = () => {
     setAnswers(answersFrom(current, true));
     setDietary(dietaryFrom(current));
+    setNames(namesFrom(current));
     setOpenDietary({});
     setSong(saved.songRequest ?? "");
     setMessage(saved.guestMessage ?? "");
@@ -133,7 +147,7 @@ export const RSVPForm = ({
       setError(
         single
           ? "Elige tu respuesta: Asistiré, No podré o Por definir."
-          : `Falta elegir la respuesta de ${joinNames(unanswered.map((m) => m.name))}.`
+          : `Falta elegir la respuesta de ${joinNames(unanswered.map((m) => labelOf(m.id)))}.`
       );
       document.getElementById(`miembro-${unanswered[0].id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
@@ -142,16 +156,16 @@ export const RSVPForm = ({
     setIsSubmitting(true);
     // Send only what changed against what this page loaded, so a relative answering from another phone
     // at the same time doesn't get their answers, song or message overwritten.
-    const changed = current
-      .map((m) => ({
-        id: m.id,
-        rsvp: answers[m.id] as Rsvp,
-        // Someone who will not attend has no dietary needs to keep.
-        dietaryRestrictions: answers[m.id] === "no" ? "" : (dietary[m.id] ?? ""),
-        before: m,
-      }))
-      .filter((a) => a.rsvp !== a.before.rsvp || a.dietaryRestrictions.trim() !== (a.before.dietaryRestrictions ?? ""))
-      .map(({ id, rsvp, dietaryRestrictions }) => ({ id, rsvp, dietaryRestrictions }));
+    const changed = current.flatMap((m) => {
+      const rsvp = answers[m.id] as Rsvp;
+      // Someone who will not attend has no dietary needs to keep.
+      const dietaryRestrictions = rsvp === "no" ? "" : (dietary[m.id] ?? "");
+      // Only a name typed here (the field is hidden for someone who will not attend).
+      const name = cleanText(names[m.id], LIMITS.memberName);
+      const nameChanged = canName(m, single) && rsvp !== "no" && name !== m.name;
+      const same = rsvp === m.rsvp && dietaryRestrictions.trim() === (m.dietaryRestrictions ?? "") && !nameChanged;
+      return same ? [] : [{ id: m.id, rsvp, dietaryRestrictions, ...(nameChanged && { name }) }];
+    });
     const result = await submitRSVP(token, {
       members: changed,
       ...(song.trim() !== (saved.songRequest ?? "") && { songRequest: song }),
@@ -187,6 +201,7 @@ export const RSVPForm = ({
         familyName={familyName}
         single={single}
         saved={saved}
+        labels={labels}
         deadlineLabel={deadlineLabel}
         checkInUrl={checkInUrl}
         onEdit={startEditing}
@@ -234,7 +249,7 @@ export const RSVPForm = ({
       )}
 
       <ul className="mt-6 space-y-3">
-        {current.map((m) => {
+        {current.map((m, index) => {
           const answer = answers[m.id];
           const isMissing = missing.includes(m.id);
           const showDietary = openDietary[m.id] || !!dietary[m.id];
@@ -249,7 +264,7 @@ export const RSVPForm = ({
             >
               <div className="flex items-start justify-between gap-2">
                 <p id={labelId} className="min-w-0 text-pretty font-serif text-lg leading-snug text-blue-ice">
-                  {m.name}
+                  {labels[index]}
                 </p>
                 {m.isChild && (
                   <span className="mt-1 shrink-0 border border-blue-mist/30 px-1.5 py-0.5 font-sans text-[9px] uppercase tracking-[0.2em] text-blue-mist">
@@ -283,6 +298,20 @@ export const RSVPForm = ({
               </div>
               {isMissing && <p className="mt-2 font-sans text-xs text-gold">Falta elegir una respuesta.</p>}
 
+              {canName(m, single) && answer !== "no" && (
+                <input
+                  type="text"
+                  value={names[m.id] ?? ""}
+                  onChange={(e) => setNames((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                  maxLength={LIMITS.memberName}
+                  placeholder={hasName(m) ? "Nombre" : "Su nombre (opcional)"}
+                  aria-label={`Nombre de ${labels[index]} (opcional)`}
+                  autoComplete="off"
+                  autoCapitalize="words"
+                  className="input-gold mt-2 text-sm"
+                />
+              )}
+
               {answer !== "no" &&
                 (showDietary ? (
                   <input
@@ -291,7 +320,7 @@ export const RSVPForm = ({
                     onChange={(e) => setDietary((prev) => ({ ...prev, [m.id]: e.target.value }))}
                     maxLength={LIMITS.dietary}
                     placeholder="Alergias o dieta especial"
-                    aria-label={`Alergias o dieta especial de ${m.name}`}
+                    aria-label={`Alergias o dieta especial de ${labels[index]}`}
                     autoFocus={openDietary[m.id] && !dietary[m.id]}
                     className="input-gold mt-2 text-sm"
                   />
@@ -299,7 +328,7 @@ export const RSVPForm = ({
                   <button
                     type="button"
                     onClick={() => setOpenDietary((prev) => ({ ...prev, [m.id]: true }))}
-                    aria-label={`Agregar alergias o dieta especial de ${m.name}`}
+                    aria-label={`Agregar alergias o dieta especial de ${labels[index]}`}
                     className="-mb-1 mt-1 inline-flex min-h-11 items-center gap-1 font-sans text-xs text-blue-mist underline-offset-4 transition-colors hover:text-gold hover:underline"
                   >
                     <Plus size={12} aria-hidden="true" /> Alergias o dieta especial
@@ -397,6 +426,7 @@ function ThankYouCard({
   familyName,
   single,
   saved,
+  labels,
   deadlineLabel,
   checkInUrl,
   onEdit,
@@ -405,10 +435,13 @@ function ThankYouCard({
   familyName: string;
   single: boolean;
   saved: SavedRSVP;
+  /** How each of saved.members is called (memberLabels). */
+  labels: string[];
   deadlineLabel: string | null;
   checkInUrl: string;
   onEdit: () => void;
 }) {
+  const labelOf = new Map(saved.members.map((m, i) => [m.id, labels[i]]));
   const yes = saved.members.filter((m) => m.rsvp === "yes");
   const no = saved.members.filter((m) => m.rsvp === "no");
   const pending = saved.members.filter((m) => m.rsvp === "pending");
@@ -426,8 +459,8 @@ function ThankYouCard({
     yes.length > 0
       ? single
         ? "Te esperamos con mucha ilusión."
-        : yes.length === 1
-          ? `Esperamos con mucha ilusión a ${yes[0].name}.`
+        : yes.length === 1 && hasName(yes[0])
+          ? `Esperamos con mucha ilusión a ${yes[0].name.trim()}.`
           : "Los esperamos con mucha ilusión."
       : allNo
         ? single
@@ -472,7 +505,7 @@ function ThankYouCard({
               <ul className="mt-2 space-y-1">
                 {g.list.map((m) => (
                   <li key={m.id} className={`text-pretty font-serif text-lg leading-snug ${g.tone}`}>
-                    {m.name}
+                    {labelOf.get(m.id)}
                     {m.dietaryRestrictions && m.rsvp !== "no" && (
                       <span className="block font-sans text-xs text-blue-mist">{m.dietaryRestrictions}</span>
                     )}

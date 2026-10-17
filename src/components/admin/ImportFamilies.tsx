@@ -3,13 +3,24 @@
 import { useMemo, useState } from "react";
 import { AlertTriangle, Download, Upload } from "lucide-react";
 import { importFamilies } from "@/app/actions/adminGuests";
-import { plural } from "@/lib/families";
-import { familyKey, parseFamiliesImport } from "@/lib/importFamilies";
+import { groupMembers, hasName, joinNames, plural } from "@/lib/families";
+import { familyKey, parseFamiliesImport, type ImportedMember } from "@/lib/importFamilies";
 import { btnPrimary, btnSecondary, labelCls } from "./ui";
 
-const EXAMPLE = ["Familia\tIntegrante\tTipo\tTeléfono", "Familia Pérez Canul\tJosé Pérez\tAdulto\t9991234567", "Familia Pérez Canul\tSofía Pérez\tNiña\t"].join(
-  "\n"
-);
+const EXAMPLE = [
+  "Familia\tIntegrante\tTipo\tTeléfono",
+  "Familia Pérez Canul\tJosé Pérez\tAdulto\t9991234567",
+  "Familia Pérez Canul\tSofía Pérez\tNiña\t",
+  "Familia Chan Uc\t2 adultos y 1 niño\t\t9997654321",
+  "Familia Ek\tLuis Ek y acompañante\t\t",
+].join("\n");
+
+/** "Ana Pérez, Sofía Pérez (niño), 1 acompañante y 2 niños": the names (with their type) and how many without one. */
+const describe = (members: ImportedMember[]) =>
+  joinNames([
+    ...members.filter(hasName).map((m) => (m.isChild ? `${m.name} (niño)` : m.name)),
+    ...groupMembers(members.filter((m) => !hasName(m)), members.some(hasName)),
+  ]);
 
 /** "Importar desde Excel": paste rows (Familia | Integrante | Tipo | Teléfono), preview, import. */
 export function ImportFamilies({
@@ -31,6 +42,7 @@ export function ImportFamilies({
   const toCreate = parsed.families.filter((f) => !existing.has(f.key));
   const members = toCreate.reduce((n, f) => n + f.members.length, 0);
   const children = toCreate.reduce((n, f) => n + f.members.filter((m) => m.isChild).length, 0);
+  const unnamed = toCreate.reduce((n, f) => n + f.members.filter((m) => !hasName(m)).length, 0);
 
   const handleImport = async () => {
     setError(null);
@@ -56,6 +68,10 @@ export function ImportFamilies({
         <li>
           En tu Excel pon <strong className="text-gold">una fila por persona</strong> con las columnas: Familia · Integrante · Tipo
           (adulto o niño, opcional) · Teléfono (opcional).
+        </li>
+        <li>
+          ¿No sabes los nombres? En «Integrante» escribe cuántos («2 adultos y 1 niño», «3», «Luis Ek y acompañante») o usa columnas
+          «Adultos» y «Niños» con el total de cada familia. La familia podrá escribir los nombres al confirmar.
         </li>
         <li>Selecciona esas columnas, cópialas (Ctrl+C) y pégalas aquí abajo.</li>
         <li>Revisa la vista previa y toca «Importar».</li>
@@ -91,7 +107,8 @@ export function ImportFamilies({
               <>
                 Se agregarán <strong className="text-gold">{plural(toCreate.length, "familia", "familias")}</strong> con{" "}
                 <strong className="text-gold">{plural(members, "integrante", "integrantes")}</strong> ({plural(members - children, "adulto", "adultos")},{" "}
-                {plural(children, "niño", "niños")}).
+                {plural(children, "niño", "niños")}
+                {unnamed > 0 && <>; {unnamed === members && unnamed > 1 ? "todos" : unnamed} sin nombre</>}).
               </>
             ) : (
               "Todavía no hay familias nuevas para agregar."
@@ -104,7 +121,10 @@ export function ImportFamilies({
               {toCreate.map((f) => (
                 <li key={f.key} className="border-l border-gold/30 pl-2">
                   <span className="font-medium text-blue-ice">{f.name}</span>
-                  <span className="text-blue-mist"> · {f.members.map((m) => (m.isChild ? `${m.name} (niño)` : m.name)).join(", ")}</span>
+                  <span className="text-blue-mist">
+                    {" "}
+                    · {describe(f.members)}
+                  </span>
                   {f.phone && <span className="text-blue-mist"> · {f.phone}</span>}
                 </li>
               ))}

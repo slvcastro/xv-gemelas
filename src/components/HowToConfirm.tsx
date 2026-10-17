@@ -22,7 +22,7 @@ export function HowToConfirm() {
           <ol className="mt-7 space-y-5 font-sans text-sm leading-relaxed text-blue-ice/85">
             <li className="flex gap-3">
               <MessageCircle size={20} strokeWidth={1.5} className="mt-0.5 shrink-0 text-gold" aria-hidden="true" />
-              <span>Abran el enlace de su mensaje de WhatsApp: ahí verán su invitación con los nombres de su familia.</span>
+              <span>Abran el enlace de su mensaje de WhatsApp: ahí verán su invitación personal con los lugares reservados para su familia.</span>
             </li>
             <li className="flex gap-3">
               <UserCheck size={20} strokeWidth={1.5} className="mt-0.5 shrink-0 text-gold" aria-hidden="true" />

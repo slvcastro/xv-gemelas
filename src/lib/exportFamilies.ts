@@ -2,13 +2,15 @@
 import { asc } from "drizzle-orm";
 import { db } from "@/db";
 import { guests, invitations } from "@/db/schema";
-import { RSVP_LABELS, countMembers, type Rsvp } from "@/lib/families";
+import { RSVP_LABELS, countMembers, hasName, withLabels, type Rsvp } from "@/lib/families";
 import { formatLongDate } from "@/lib/format";
 import { getDeadline, memberOrder } from "@/lib/invitations";
 import type { XlsxSheet } from "@/lib/xlsx";
 
 const STATUS_LABELS = { confirmed: "Confirmada", declined: "No asistirán", pending: "Por definir" } as const;
 const typeLabel = (isChild: boolean) => (isChild ? "Niño" : "Adulto");
+/** The name, or "Acompañante 1 (sin nombre)" (the import reads it back as a person without a name). */
+const nameCell = (m: { name: string; label: string }) => (hasName(m) ? m.name : `${m.label} (sin nombre)`);
 
 export async function buildGuestWorkbook(siteUrl: string): Promise<XlsxSheet[]> {
   const [familyRows, memberRows, deadline] = await Promise.all([
@@ -19,7 +21,7 @@ export async function buildGuestWorkbook(siteUrl: string): Promise<XlsxSheet[]> 
 
   const families = familyRows.map((f) => ({
     ...f,
-    members: memberRows.filter((m) => m.invitationId === f.id),
+    members: withLabels(memberRows.filter((m) => m.invitationId === f.id)),
   }));
   const allMembers = families.flatMap((f) => f.members.map((m) => ({ ...m, rsvp: m.rsvp as Rsvp, family: f })));
   // Deactivated (cancelled) invitations stay in "Todos" and "Familias" but don't count as guests.
@@ -47,6 +49,11 @@ export async function buildGuestWorkbook(siteUrl: string): Promise<XlsxSheet[]> 
       ["Asistirán · niños", c.yesChildren, null],
       ["No asistirán", c.no, null],
       ["Por definir", c.pending, "Aún no confirman"],
+      [
+        "Invitados sin nombre",
+        activeMembers.filter((m) => !hasName(m)).length,
+        "Solo se sabe si es adulto o niño; la familia puede escribir su nombre al confirmar",
+      ],
       ["Familias que abrieron su invitación", families.filter((f) => f.openedAt).length, `de ${families.length}`],
       ["Familias a las que se envió", families.filter((f) => f.sentAt).length, `de ${families.length}`],
       [
@@ -73,7 +80,7 @@ export async function buildGuestWorkbook(siteUrl: string): Promise<XlsxSheet[]> 
     ],
     rows: activeMembers
       .filter((m) => m.rsvp === "yes")
-      .map((m) => [m.family.name, m.name, typeLabel(m.isChild), m.dietaryRestrictions, m.family.phone, m.family.token]),
+      .map((m) => [m.family.name, nameCell(m), typeLabel(m.isChild), m.dietaryRestrictions, m.family.phone, m.family.token]),
   };
 
   const everyone: XlsxSheet = {
@@ -90,7 +97,7 @@ export async function buildGuestWorkbook(siteUrl: string): Promise<XlsxSheet[]> 
     ],
     rows: allMembers.map((m) => [
       m.family.name,
-      m.name,
+      nameCell(m),
       typeLabel(m.isChild),
       RSVP_LABELS[m.rsvp],
       m.dietaryRestrictions,
@@ -106,6 +113,9 @@ export async function buildGuestWorkbook(siteUrl: string): Promise<XlsxSheet[]> 
       { header: "Familia", width: 30 },
       { header: "Código", width: 10 },
       { header: "Integrantes", width: 12 },
+      { header: "Adultos", width: 9 },
+      { header: "Niños", width: 8 },
+      { header: "Sin nombre", width: 11 },
       { header: "Asistirán", width: 11 },
       { header: "No asistirán", width: 13 },
       { header: "Por definir", width: 12 },
@@ -125,6 +135,9 @@ export async function buildGuestWorkbook(siteUrl: string): Promise<XlsxSheet[]> 
         f.name,
         f.token,
         fc.total,
+        fc.adults,
+        fc.children,
+        f.members.filter((m) => !hasName(m)).length,
         fc.yes,
         fc.no,
         fc.pending,
@@ -169,6 +182,9 @@ export function buildImportTemplate(): XlsxSheet[] {
         ["Familia González Puc", "Marco González Puc", "Adulto", "9991234567"],
         ["Familia González Puc", "Graciela Cob Ornelas", "Adulto", null],
         ["Familia González Puc", "Sofía González Cob", "Niño", null],
+        // Without names: how many (the family writes the names when they confirm).
+        ["Familia Chan Uc", "2 adultos y 1 niño", null, "9997654321"],
+        ["Familia Ek Pool", "Luis Ek y acompañante", "Adulto", null],
       ],
     },
   ];

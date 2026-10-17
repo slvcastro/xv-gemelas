@@ -2,7 +2,7 @@ import { cache } from "react";
 import { asc, eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { guests, invitations, settings } from "@/db/schema";
-import type { Rsvp } from "@/lib/families";
+import { withLabels, type Rsvp } from "@/lib/families";
 
 /** Tokens are 6 uppercase letters/digits; tolerate lowercase, spaces or dashes typed by hand. */
 export function normalizeToken(raw: string) {
@@ -53,7 +53,10 @@ export const getDeadline = cache(async (): Promise<Date | null> => {
 
 export type PublicMember = {
   id: string;
+  /** "" when invited without a name (the family may write it, see submitRSVP). */
   name: string;
+  /** The family wrote the name: they may still correct it. */
+  nameFromGuest: boolean;
   isChild: boolean;
   rsvp: Rsvp;
   dietaryRestrictions: string | null;
@@ -80,6 +83,7 @@ export async function loadPublicMembers(invitationId: string): Promise<PublicMem
     .select({
       id: guests.id,
       name: guests.name,
+      nameFromGuest: guests.nameFromGuest,
       isChild: guests.isChild,
       rsvp: guests.rsvp,
       dietaryRestrictions: guests.dietaryRestrictions,
@@ -147,7 +151,10 @@ export const getPublicFamily = async (rawToken: string) => (await loadPublicFami
 
 export type CheckInMember = {
   id: string;
+  /** "" when invited without a name. */
   name: string;
+  /** The name, or "Adulto 1", "Acompañante", "Niño 2"… (memberLabels). */
+  label: string;
   isChild: boolean;
   rsvp: Rsvp;
   /** ISO timestamp of the entrance, null if not in yet. */
@@ -177,7 +184,7 @@ async function loadCheckInFamily(where: SQL): Promise<CheckInFamily | null> {
   return {
     ...inv,
     isActive: inv.isActive !== false,
-    members: members.map((m) => ({ ...m, checkedInAt: m.checkedInAt?.toISOString() ?? null })),
+    members: withLabels(members).map((m) => ({ ...m, checkedInAt: m.checkedInAt?.toISOString() ?? null })),
   };
 }
 

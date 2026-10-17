@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Bell, Check, Copy, DoorOpen, ExternalLink, Eye, EyeOff, MessageCircle, Music, Pencil, Send, Trash2 } from "lucide-react";
 import { setMemberRsvp } from "@/app/actions/adminGuests";
-import { RSVP_LABELS, countMembers, type Counts, type Rsvp } from "@/lib/families";
+import { RSVP_LABELS, countMembers, hasName, type Counts, type Rsvp } from "@/lib/families";
 import { invitationMessage, reminderMessage } from "@/lib/whatsapp";
 import { ChildTag, RSVP_TONE, RsvpIcon, StatusBadge, btnSmall, copyText } from "./ui";
 import type { AdminFamily } from "./types";
@@ -26,12 +26,8 @@ export const isReminderFor = (family: AdminFamily) => !!family.sentAt && family.
 
 /** Both WhatsApp texts for a family: the short invitation and the reminder. */
 export function familyMessages(family: AdminFamily, link: string, deadline: string | null) {
-  const memberNames = family.members.map((m) => m.name);
-  const pendingNames = family.members.filter((m) => m.rsvp === "pending").map((m) => m.name);
-  return {
-    invitation: invitationMessage({ familyName: family.name, memberNames, url: link, deadline }),
-    reminder: reminderMessage({ familyName: family.name, memberNames, pendingNames, url: link, deadline }),
-  };
+  const data = { familyName: family.name, members: family.members, url: link, deadline };
+  return { invitation: invitationMessage(data), reminder: reminderMessage(data) };
 }
 
 export function FamilyCard({
@@ -72,7 +68,7 @@ export function FamilyCard({
     setSavingMember(null);
     setChanging(null);
     const member = family.members.find((m) => m.id === memberId);
-    notify(result.success ? `${member?.name ?? "Integrante"}: ${RSVP_LABELS[rsvp]}.` : result.error);
+    notify(result.success ? `${member?.label ?? "Integrante"}: ${RSVP_LABELS[rsvp]}.` : result.error);
   };
 
   return (
@@ -116,19 +112,30 @@ export function FamilyCard({
                 type="button"
                 onClick={() => setChanging(changing === m.id ? null : m.id)}
                 aria-expanded={changing === m.id}
-                aria-label={`${m.name}: ${RSVP_LABELS[m.rsvp]}. Cambiar respuesta`}
+                aria-label={`${m.label}: ${RSVP_LABELS[m.rsvp]}. Cambiar respuesta`}
                 title="Cambiar respuesta"
                 className={`inline-flex h-9 w-9 shrink-0 items-center justify-center border transition-opacity hover:opacity-80 sm:h-7 sm:w-7 ${RSVP_TONE[m.rsvp]}`}
               >
                 <RsvpIcon rsvp={m.rsvp} />
               </button>
-              <span className="font-sans text-sm text-blue-ice/95">{m.name}</span>
-              {m.isChild && <ChildTag />}
+              {hasName(m) ? (
+                <span className="font-sans text-sm text-blue-ice/95">{m.name}</span>
+              ) : (
+                <span
+                  className="font-sans text-sm italic text-blue-mist"
+                  title={family.members.length > 1 ? "Sin nombre: la familia puede escribirlo al confirmar" : "Sin nombre"}
+                >
+                  {m.label}
+                </span>
+              )}
+              {/* "Niño 2" already says it. */}
+              {m.isChild && hasName(m) && <ChildTag />}
+              {m.nameFromGuest && hasName(m) && <span className="font-sans text-[11px] text-blue-mist/80">· lo escribió la familia</span>}
               {m.checkedInAt && <span className="font-sans text-[11px] text-emerald-200">· llegó {m.checkedInAt}</span>}
               {m.dietaryRestrictions && <span className="font-sans text-xs text-amber-100/85">· {m.dietaryRestrictions}</span>}
             </div>
             {changing === m.id && (
-              <div className="mb-1 mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={`Respuesta de ${m.name}`}>
+              <div className="mb-1 mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={`Respuesta de ${m.label}`}>
                 {(["yes", "no", "pending"] as const).map((v) => (
                   <button
                     key={v}
